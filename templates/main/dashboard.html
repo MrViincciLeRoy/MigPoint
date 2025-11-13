@@ -16,6 +16,7 @@
                 <small class="text-muted">{{ current_user.phone }}</small>
             </div>
             <a href="{{ url_for('wallet.index') }}" class="d-block px-3 py-2 text-decoration-none text-dark">💰 Wallet</a>
+            <a href="{{ url_for('main.ad_providers') }}" class="d-block px-3 py-2 text-decoration-none text-dark">📡 Ad Providers</a>
             {% if current_user.is_admin %}
             <a href="{{ url_for('admin.dashboard') }}" class="d-block px-3 py-2 text-decoration-none text-dark">⚙️ Admin</a>
             {% endif %}
@@ -86,8 +87,8 @@
     {% if ads|length == 0 %}
     <div class="alert alert-info text-center">
         <span class="fs-3">⏳</span>
-        <p class="fw-bold mb-2">All ads are on cooldown!</p>
-        <small>Wait 5 minutes or click refresh to check for available ads</small>
+        <p class="fw-bold mb-2">No ads available right now!</p>
+        <small>Click refresh to check for new ads from our network</small>
         <button onclick="location.reload()" class="btn btn-primary btn-sm mt-2 w-100">
             🔄 Check Now
         </button>
@@ -108,8 +109,32 @@
                             </div>
                             <span class="badge bg-success">+{{ ad.reward }} MIGP</span>
                         </div>
+                        
+                        <!-- Provider badge -->
+                        <div class="mb-2">
+                            <span class="badge 
+                                {% if ad.provider_name == 'demo' %}bg-secondary
+                                {% elif ad.provider_name == 'admob' %}bg-danger
+                                {% elif ad.provider_name == 'unity' %}bg-dark
+                                {% elif ad.provider_name == 'facebook' %}bg-primary
+                                {% elif ad.provider_name == 'smaato' %}bg-info
+                                {% elif ad.provider_name == 'applovin' %}bg-warning text-dark
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {% if ad.provider_name == 'demo' %}🎬 Demo
+                                {% elif ad.provider_name == 'admob' %}📱 AdMob
+                                {% elif ad.provider_name == 'unity' %}🎮 Unity
+                                {% elif ad.provider_name == 'facebook' %}👥 Facebook
+                                {% elif ad.provider_name == 'smaato' %}🌍 Smaato
+                                {% elif ad.provider_name == 'applovin' %}📊 AppLovin
+                                {% else %}{{ ad.provider_name|title }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        
                         <p class="card-text small">{{ ad.description }}</p>
-                        <a href="{{ url_for('main.watch_ad', ad_id=ad.id) }}" class="btn btn-gradient btn-sm w-100">
+                        <a href="{{ url_for('main.watch_ad', provider=ad.provider_name, ad_id=ad.ad_id) }}" 
+                           class="btn btn-gradient btn-sm w-100">
                             ▶ Watch ({{ ad.duration }}s)
                         </a>
                     </div>
@@ -121,7 +146,8 @@
 
     <div class="alert alert-light border mt-3">
         <small class="text-muted">
-            💡 <strong>Tip:</strong> You can watch each ad multiple times! After watching, wait 5 minutes before watching the same ad again.
+            💡 <strong>Tip:</strong> We fetch ads from multiple networks including AdMob, Unity, Facebook, and more! 
+            <a href="{{ url_for('main.ad_providers') }}" class="text-decoration-none">View all providers →</a>
         </small>
     </div>
 
@@ -157,16 +183,32 @@
             <div>💰</div>
             <small>Wallet</small>
         </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link text-secondary text-center">
+            <div>🤦‍♂️🤦‍♂️</div>
+            <small>Logout</small>
+        </a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('admin.dashboard') }}" class="nav-link text-secondary text-center">
             <div>📊</div>
             <small>Admin</small>
         </a>
         {% endif %}
-        <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger text-center">
-            <div>🚪</div>
-            <small>Logout</small>
-        </a>
     </div>
 </nav>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById('userMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('userMenu');
+    const btn = document.getElementById('menuBtn');
+    if (!menu.contains(event.target) && !btn.contains(event.target)) {
+        menu.style.display = 'none';
+    }
+});
+</script>
 {% endblock %}

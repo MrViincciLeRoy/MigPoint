@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar gradient-bg text-white">
+    <div class="container-fluid">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-light btn-sm">← Back</a>
+        <span class="navbar-brand text-white mb-0">Ad Providers</span>
+        <a href="{{ url_for('main.test_ad') }}" class="btn btn-light btn-sm">Test</a>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <!-- Provider Status -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-gradient text-white">
+            <h5 class="mb-0">📡 Provider Status</h5>
+        </div>
+        <div class="card-body">
+            {% for provider in providers %}
+            <div class="d-flex justify-content-between align-items-center py-3 {% if not loop.last %}border-bottom{% endif %}">
+                <div>
+                    <div class="fw-bold text-capitalize">
+                        {% if provider.name == 'admob' %}📱 Google AdMob
+                        {% elif provider.name == 'unity' %}🎮 Unity Ads
+                        {% elif provider.name == 'facebook' %}👥 Facebook Audience Network
+                        {% elif provider.name == 'smaato' %}🌍 Smaato
+                        {% elif provider.name == 'applovin' %}📊 AppLovin MAX
+                        {% elif provider.name == 'ironsource' %}⚡ ironSource
+                        {% elif provider.name == 'demo' %}🎬 Demo Ads
+                        {% else %}{{ provider.name|title }}
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ provider.name }}</small>
+                </div>
+                <div>
+                    {% if provider.enabled %}
+                    <span class="badge bg-success">✓ Enabled</span>
+                    {% else %}
+                    <span class="badge bg-secondary">○ Disabled</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Performance Stats -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">📈 Performance Stats</h5>
+        </div>
+        <div class="card-body">
+            {% if stats|length == 0 %}
+            <p class="text-center text-muted py-4">No ad data yet. Start watching ads!</p>
+            {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th class="text-center">Impressions</th>
+                            <th class="text-center">Completions</th>
+                            <th class="text-center">Rate</th>
+                            <th>Last Served</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats %}
+                        <tr>
+                            <td class="fw-bold text-capitalize">{{ stat.provider }}</td>
+                            <td class="text-center">{{ stat.impressions }}</td>
+                            <td class="text-center">{{ stat.completions }}</td>
+                            <td class="text-center">
+                                <span class="badge {% if stat.completion_rate >= 80 %}bg-success{% elif stat.completion_rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ stat.completion_rate }}%
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ stat.last_served }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Configuration Guide -->
+    <div class="card shadow">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">⚙️ Configuration Guide</h5>
+        </div>
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">How to Enable Real Ad Providers:</h6>
+            
+            <ol class="mb-4">
+                <li class="mb-2">
+                    <strong>Copy .env.example to .env</strong>
+                    <pre class="bg-light p-2 rounded mt-1"><code>cp .env.example .env</code></pre>
+                </li>
+                
+                <li class="mb-2">
+                    <strong>Get API Keys from providers:</strong>
+                    <ul class="mt-2">
+                        <li><a href="https://admob.google.com" target="_blank">Google AdMob</a> - Best for Android/iOS apps</li>
+                        <li><a href="https://dashboard.unity3d.com" target="_blank">Unity Ads</a> - Great for games</li>
+                        <li><a href="https://www.facebook.com/audiencenetwork" target="_blank">Facebook Audience Network</a> - High CPM</li>
+                        <li><a href="https://www.smaato.com" target="_blank">Smaato</a> - Excellent for African markets</li>
+                        <li><a href="https://www.applovin.com" target="_blank">AppLovin MAX</a> - Premium ads</li>
+                        <li><a href="https://www.is.com" target="_blank">ironSource</a> - Gaming focused</li>
+                    </ul>
+                </li>
+                
+                <li class="mb-2">
+                    <strong>Add your keys to .env file:</strong>
+                    <pre class="bg-light p-2 rounded mt-1"><code># Enable provider
+ADMOB_ENABLED=True
+ADMOB_API_KEY=your_api_key_here
+ADMOB_APP_ID=your_app_id_here</code></pre>
+                </li>
+                
+                <li class="mb-2">
+                    <strong>Restart the application</strong>
+                </li>
+            </ol>
+
+            <div class="alert alert-warning">
+                <strong>⚠️ Note:</strong> Most ad networks require SDK integration for mobile apps. 
+                The REST API implementations shown here are for server-side ad serving. 
+                For production, consider using their official SDKs.
+            </div>
+
+            <div class="alert alert-info">
+                <strong>💡 Tip:</strong> Demo ads will continue to work as a fallback if real providers fail. 
+                You can disable demo ads by setting <code>DEMO_ENABLED=False</code> in your .env file.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
