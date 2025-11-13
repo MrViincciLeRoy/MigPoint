@@ -1,9 +1,16 @@
 from flask import Flask, redirect, url_for
 from flask_login import LoginManager, login_required
+from dotenv import load_dotenv
+import os
+
+# Load environment variables FIRST (before importing models)
+load_dotenv()
+
+# Now import models (which will use the loaded env vars)
 from models import User, init_db
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'change-this-secret-key-in-production'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret-key-in-production')
 
 # Setup Flask-Login
 login_manager = LoginManager()
@@ -43,15 +50,43 @@ def list_routes():
     return '<br>'.join(sorted(output))
 
 if __name__ == '__main__':
-    init_db()
+    # Check if .env file exists
+    if not os.path.exists('.env'):
+        print("\n" + "="*60)
+        print("⚠️  WARNING: .env file not found!")
+        print("="*60)
+        print("Please create a .env file in your project root.")
+        print("Copy .env.example and fill in your Aiven credentials.")
+        print("="*60 + "\n")
+        exit(1)
+    
+    # Check if database is initialized
+    try:
+        from models import get_db
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        cursor.close()
+        conn.close()
+        print("\n✓ Database connection verified")
+    except Exception as e:
+        print("\n" + "="*60)
+        print("⚠️  DATABASE NOT INITIALIZED")
+        print("="*60)
+        print("Run this first: python setup_database.py")
+        print("="*60 + "\n")
+        exit(1)
+    
     print("\n" + "="*60)
-    print("MIG POINTS APP")
+    print("🚀 MIG POINTS APP - Running on Aiven PostgreSQL")
     print("="*60)
     print("Demo Users (password: demo123):")
     print("  👑 Admin: 0821234567")
     print("  👤 User1: 0829876543")
     print("  👤 User2: 0834567890")
     print("="*60)
-    print("\n🔗 Visit http://localhost:5000/routes to see all routes")
+    print("\n🔗 Visit http://localhost:5000")
+    print("📋 Routes: http://localhost:5000/routes")
     print("="*60 + "\n")
+    
     app.run(debug=True, host='0.0.0.0', port=5000)

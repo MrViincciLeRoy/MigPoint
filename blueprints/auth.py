@@ -7,13 +7,15 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # Redirect if already logged in
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
     form = LoginForm()
     conn = get_db()
-    demo_users = conn.execute('SELECT * FROM users').fetchall()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users')
+    demo_users = cursor.fetchall()
+    cursor.close()
     conn.close()
     
     if form.validate_on_submit():
@@ -21,10 +23,14 @@ def login():
         if user:
             login_user(user)
             conn = get_db()
-            conn.execute('INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)',
-                        (user.id, 'bonus', 10, 'Daily login bonus'))
-            conn.execute('UPDATE users SET balance = balance + 10 WHERE id = ?', (user.id,))
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+                (user.id, 'bonus', 10, 'Daily login bonus')
+            )
+            cursor.execute('UPDATE users SET balance = balance + 10 WHERE id = %s', (user.id,))
             conn.commit()
+            cursor.close()
             conn.close()
             flash('Welcome! +10 MIGP bonus', 'success')
             return redirect(request.args.get('next') or url_for('main.dashboard'))
@@ -34,17 +40,28 @@ def login():
 @auth_bp.route('/quick-login/<phone>')
 def quick_login(phone):
     conn = get_db()
-    user_data = conn.execute('SELECT * FROM users WHERE phone = ?', (phone,)).fetchone()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE phone = %s', (phone,))
+    user_data = cursor.fetchone()
+    cursor.close()
     conn.close()
+    
     if user_data:
-        user = User(user_data['id'], user_data['phone'], user_data['name'], user_data['is_admin'], user_data['balance'])
+        user = User(user_data['id'], user_data['phone'], user_data['name'], 
+                   user_data['is_admin'], user_data['balance'])
         login_user(user)
+        
         conn = get_db()
-        conn.execute('INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)',
-                    (user.id, 'bonus', 10, 'Daily login bonus'))
-        conn.execute('UPDATE users SET balance = balance + 10 WHERE id = ?', (user.id,))
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+            (user.id, 'bonus', 10, 'Daily login bonus')
+        )
+        cursor.execute('UPDATE users SET balance = balance + 10 WHERE id = %s', (user.id,))
         conn.commit()
+        cursor.close()
         conn.close()
+        
         flash('Welcome! +10 MIGP', 'success')
         return redirect(url_for('main.dashboard'))
     flash('User not found', 'danger')
@@ -52,7 +69,6 @@ def quick_login(phone):
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    # Redirect if already logged in
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
@@ -62,10 +78,14 @@ def register():
         if user:
             login_user(user)
             conn = get_db()
-            conn.execute('INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)',
-                        (user.id, 'bonus', 50, 'Welcome bonus'))
-            conn.execute('UPDATE users SET balance = balance + 50 WHERE id = ?', (user.id,))
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+                (user.id, 'bonus', 50, 'Welcome bonus')
+            )
+            cursor.execute('UPDATE users SET balance = balance + 50 WHERE id = %s', (user.id,))
             conn.commit()
+            cursor.close()
             conn.close()
             flash('Welcome! +50 MIGP bonus', 'success')
             return redirect(url_for('main.dashboard'))
