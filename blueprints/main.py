@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import get_db
 from datetime import datetime, timedelta
-from ad_providers_enhanced import ad_manager
+from achieve.ad_providers_enhanced import ad_manager
 
 main_bp = Blueprint('main', __name__)
 
