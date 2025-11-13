@@ -1,13 +1,23 @@
 """
-models.py - Fixed for proper .env loading
+models.py - Updated for psycopg v3 compatibility
 """
 
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
+
+# Try psycopg v3 first, fallback to psycopg2
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+    USING_PSYCOPG3 = True
+    print("✓ Using psycopg v3")
+except ImportError:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    USING_PSYCOPG3 = False
+    print("✓ Using psycopg2")
 
 # Load .env file from root directory
 load_dotenv()
@@ -16,7 +26,7 @@ load_dotenv()
 DATABASE_CONFIG = {
     'host': os.getenv('AIVEN_HOST'),
     'port': int(os.getenv('AIVEN_PORT', 5432)),
-    'database': os.getenv('AIVEN_DB'),
+    'dbname': os.getenv('AIVEN_DB'),  # psycopg3 uses 'dbname'
     'user': os.getenv('AIVEN_USER'),
     'password': os.getenv('AIVEN_PASSWORD'),
     'sslmode': 'require'
@@ -33,49 +43,54 @@ def validate_config():
         print("❌ ERROR: Missing database configuration!")
         print("="*60)
         print(f"Missing environment variables: {', '.join(missing)}")
-        print("\nPlease create a .env file in your project root with:")
-        print("\nAIVEN_HOST=your-host.aivencloud.com")
-        print("AIVEN_PORT=12345")
-        print("AIVEN_DB=defaultdb")
-        print("AIVEN_USER=avnadmin")
-        print("AIVEN_PASSWORD=your-password")
-        print("\n" + "="*60 + "\n")
+        print("\nPlease set these in your environment or .env file")
+        print("="*60 + "\n")
         raise ValueError(f"Missing required environment variables: {missing}")
     
     print("\n✓ Database configuration loaded successfully")
     print(f"  Host: {DATABASE_CONFIG['host']}")
-    print(f"  Database: {DATABASE_CONFIG['database']}")
+    print(f"  Database: {DATABASE_CONFIG['dbname']}")
     print(f"  User: {DATABASE_CONFIG['user']}\n")
 
 # Validate on import
 validate_config()
 
 def get_db():
-    """Get PostgreSQL database connection"""
+    """Get PostgreSQL database connection (compatible with both psycopg versions)"""
     try:
-        conn = psycopg2.connect(
-            host=DATABASE_CONFIG['host'],
-            port=DATABASE_CONFIG['port'],
-            database=DATABASE_CONFIG['database'],
-            user=DATABASE_CONFIG['user'],
-            password=DATABASE_CONFIG['password'],
-            sslmode=DATABASE_CONFIG['sslmode'],
-            cursor_factory=RealDictCursor
-        )
+        if USING_PSYCOPG3:
+            # psycopg v3 syntax
+            conn = psycopg.connect(
+                host=DATABASE_CONFIG['host'],
+                port=DATABASE_CONFIG['port'],
+                dbname=DATABASE_CONFIG['dbname'],
+                user=DATABASE_CONFIG['user'],
+                password=DATABASE_CONFIG['password'],
+                sslmode=DATABASE_CONFIG['sslmode'],
+                row_factory=dict_row
+            )
+        else:
+            # psycopg2 syntax
+            conn = psycopg2.connect(
+                host=DATABASE_CONFIG['host'],
+                port=DATABASE_CONFIG['port'],
+                database=DATABASE_CONFIG['dbname'],
+                user=DATABASE_CONFIG['user'],
+                password=DATABASE_CONFIG['password'],
+                sslmode=DATABASE_CONFIG['sslmode'],
+                cursor_factory=RealDictCursor
+            )
         return conn
-    except psycopg2.OperationalError as e:
+    except Exception as e:
         print("\n" + "="*60)
         print("❌ DATABASE CONNECTION ERROR")
         print("="*60)
         print(f"Error: {e}")
         print("\nTroubleshooting:")
-        print("1. Check your .env file has correct Aiven credentials")
+        print("1. Check your environment variables are correct")
         print("2. Verify your IP is whitelisted in Aiven console")
-        print("3. Test connection: psql -h HOST -p PORT -U USER -d DATABASE")
+        print("3. Ensure SSL is enabled")
         print("="*60 + "\n")
-        raise
-    except Exception as e:
-        print(f"Unexpected database error: {e}")
         raise
 
 def init_db():
