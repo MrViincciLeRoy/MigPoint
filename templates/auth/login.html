@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-vh-100 gradient-bg d-flex align-items-center justify-content-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow-lg">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <div class="rounded-circle bg-gradient d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <svg width="40" height="40" fill="white" viewBox="0 0 24 24">
+                                    <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.07 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+                                </svg>
+                            </div>
+                            <h2 class="mt-3">MIG Points</h2>
+                            <p class="text-muted">Free WiFi • Earn Rewards • Get Airtime</p>
+                        </div>
+
+                        <form method="POST">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                {{ form.phone.label(class="form-label") }}
+                                {{ form.phone(class="form-control" + (" is-invalid" if form.phone.errors else ""), placeholder="0821234567") }}
+                                {% if form.phone.errors %}
+                                    <div class="invalid-feedback">{{ form.phone.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback">{{ form.password.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+
+                            {{ form.submit(class="btn btn-gradient w-100 py-2 mb-3") }}
+                        </form>
+
+                        <div class="text-center">
+                            <a href="{{ url_for('auth.register') }}" class="text-decoration-none">Don't have an account? Register</a>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="text-center">
+                            <p class="text-muted small mb-2">🎮 Quick Demo Login:</p>
+                            {% for user in demo_users %}
+                            <a href="{{ url_for('auth.quick_login', phone=user.phone) }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                                {% if user.is_admin %}👑 Admin{% else %}👤 User{% endif %}: {{ user.phone }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

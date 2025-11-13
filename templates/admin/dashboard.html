@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar gradient-bg text-white">
+    <div class="container-fluid">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-light btn-sm">← Back</a>
+        <span class="navbar-brand text-white mb-0">Admin Dashboard</span>
+        <div style="width: 70px;"></div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="row g-3 mb-4">
+        <div class="col-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">👥</div>
+                    <small class="text-muted">Total Users</small>
+                    <h2 class="mb-0">{{ total_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">📊</div>
+                    <small class="text-muted">Ad Views</small>
+                    <h2 class="mb-0">{{ total_ad_views }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">📈</div>
+                    <small class="text-muted">MIGP Earned</small>
+                    <h2 class="mb-0">{{ total_earned }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">💵</div>
+                    <small class="text-muted">MIGP Spent</small>
+                    <h2 class="mb-0">{{ total_spent }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">👥 All Users</h5>
+        </div>
+        <div class="card-body">
+            {% for user in users %}
+            <div class="d-flex justify-content-between align-items-center py-3 {% if not loop.last %}border-bottom{% endif %}">
+                <div>
+                    <div class="fw-bold">{{ user.name }}</div>
+                    <small class="text-muted">{{ user.phone }}</small>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold text-primary">{{ user.balance }} MIGP</div>
+                    <small class="text-muted">{% if user.is_admin %}Admin{% else %}User{% endif %}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">📺 Active Ads</h5>
+        </div>
+        <div class="card-body">
+            {% for ad in ads %}
+            <div class="d-flex justify-content-between align-items-start py-3 {% if not loop.last %}border-bottom{% endif %}">
+                <div>
+                    <div class="fw-bold">{{ ad.title }}</div>
+                    <small class="text-muted">{{ ad.advertiser }}</small>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold text-success">+{{ ad.reward }} MIGP</div>
+                    <small class="text-muted">{{ ad.duration }}s</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

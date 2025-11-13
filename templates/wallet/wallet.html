@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar gradient-bg text-white">
+    <div class="container-fluid">
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-light btn-sm">← Back</a>
+        <span class="navbar-brand text-white mb-0">My Wallet</span>
+        <div style="width: 70px;"></div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="card gradient-bg text-white shadow-lg mb-4">
+        <div class="card-body p-4">
+            <small class="opacity-75">Available Balance</small>
+            <h1 class="display-3 mb-0">{{ user.balance }} MIGP</h1>
+            <p class="fs-5 mb-0">≈ R{{ "%.2f"|format(user.balance * 0.1) }}</p>
+        </div>
+    </div>
+<!-- DATA SECTION -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">📶 Data Bundles</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <strong>Best Value:</strong> Get more data with your points!
+            </p>
+            
+            <div class="row g-3">
+                {% for package in data_packages %}
+                <div class="col-6 col-md-4">
+                    <form method="POST" action="{{ url_for('wallet.convert_data') }}" class="h-100">
+                        <input type="hidden" name="data_amount" value="{{ package.amount }}">
+                        <input type="hidden" name="points" value="{{ package.points }}">
+                        <button type="submit"
+                                {% if user.balance < package.points %}disabled{% endif %}
+                                class="btn {% if user.balance >= package.points %}btn-gradient{% else %}btn-secondary{% endif %} w-100 h-100 py-3">
+                            <div class="fs-4 fw-bold">{{ package.amount }}</div>
+                            <small>{{ package.points }} MIGP</small>
+                            {% if user.balance >= package.points %}
+                            <div class="badge bg-light text-success mt-2">✓ Available</div>
+                            {% else %}
+                            <div class="badge bg-dark mt-2">Need {{ package.points - user.balance }} more</div>
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- AIRTIME SECTION -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">📞 Airtime Packages</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <strong>Conversion Rate:</strong> 10 MIGP = R1 Airtime
+            </p>
+            
+            <form method="POST" action="{{ url_for('wallet.convert_airtime') }}">
+                <div class="row g-3">
+                    {% for package in airtime_packages %}
+                    <div class="col-6 col-md-4">
+                        <button type="submit" name="amount" value="{{ package.amount }}" 
+                                {% if user.balance < package.points %}disabled{% endif %}
+                                class="btn {% if user.balance >= package.points %}btn-gradient{% else %}btn-secondary{% endif %} w-100 py-3">
+                            <div class="fs-4 fw-bold">R{{ package.amount }}</div>
+                            <small>{{ package.points }} MIGP</small>
+                            {% if user.balance < package.points %}
+                            <div><small class="badge bg-dark mt-1">Need {{ package.points - user.balance }} more</small></div>
+                            {% endif %}
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <!-- CONVERSION RATES INFO -->
+    <div class="card shadow mb-4 bg-light">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">💡 Quick Reference</h6>
+            <div class="row g-2 small">
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📞 R1 Airtime</span>
+                        <span class="fw-bold">10 MIGP</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📶 250MB</span>
+                        <span class="fw-bold">50 MIGP</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📶 500MB</span>
+                        <span class="fw-bold">90 MIGP</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📶 1GB</span>
+                        <span class="fw-bold">150 MIGP</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📶 2GB</span>
+                        <span class="fw-bold">280 MIGP</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>📶 5GB</span>
+                        <span class="fw-bold">650 MIGP</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRANSACTION HISTORY -->
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">📜 Transaction History</h5>
+        </div>
+        <div class="card-body">
+            {% if transactions|length == 0 %}
+            <p class="text-center text-muted py-4">No transactions yet</p>
+            {% else %}
+                {% for tx in transactions %}
+                <div class="d-flex justify-content-between align-items-start py-3 {% if not loop.last %}border-bottom{% endif %}">
+                    <div>
+                        <div class="fw-bold">
+                            {% if 'Airtime' in tx.description %}
+                                📞 {{ tx.description }}
+                            {% elif 'Data' in tx.description %}
+                                📶 {{ tx.description }}
+                            {% elif 'Watched' in tx.description %}
+                                🎬 {{ tx.description }}
+                            {% elif 'bonus' in tx.description %}
+                                🎁 {{ tx.description }}
+                            {% else %}
+                                {{ tx.description }}
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{{ tx.timestamp }}</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold fs-5 {% if tx.type == 'spend' %}text-danger{% else %}text-success{% endif %}">
+                            {% if tx.type == 'spend' %}-{% else %}+{% endif %}{{ tx.amount }}
+                        </div>
+                        <small class="text-muted">MIGP</small>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

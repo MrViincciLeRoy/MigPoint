@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="navbar gradient-bg text-white sticky-top shadow">
+    <div class="container-fluid">
+        <span class="navbar-brand text-white">
+            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" class="me-2">
+                <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.07 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+            </svg>
+            MIG Points
+        </span>
+        <button class="btn btn-light btn-sm" onclick="toggleMenu()" id="menuBtn">
+            {{ current_user.name }} ▼
+        </button>
+        <div id="userMenu" class="position-absolute end-0 mt-5 me-3 bg-white rounded shadow" style="display: none; min-width: 200px; z-index: 1000;">
+            <div class="p-3 border-bottom">
+                <small class="text-muted">{{ current_user.phone }}</small>
+            </div>
+            <a href="{{ url_for('wallet.index') }}" class="d-block px-3 py-2 text-decoration-none text-dark">💰 Wallet</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.dashboard') }}" class="d-block px-3 py-2 text-decoration-none text-dark">⚙️ Admin</a>
+            {% endif %}
+            <div class="border-top"></div>
+            <a href="{{ url_for('auth.logout') }}" class="d-block px-3 py-2 text-decoration-none text-danger">🚪 Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4" style="padding-bottom: 100px;">
+    <div class="card gradient-bg text-white shadow-lg mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <small class="opacity-75">Your Balance</small>
+                    <h1 class="display-4 mb-0">{{ user.balance }} MIGP</h1>
+                    <p class="mb-0">≈ R{{ "%.2f"|format(user.balance * 0.1) }}</p>
+                </div>
+                <div class="text-end">
+                    <small class="opacity-75">Today</small>
+                    <h3 class="mb-0">+{{ today_earnings }}</h3>
+                </div>
+            </div>
+            <a href="{{ url_for('wallet.index') }}" class="btn btn-light w-100">💰 Convert to Airtime</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                            <span class="fs-4">📈</span>
+                        </div>
+                        <div>
+                            <small class="text-muted">Total Earned</small>
+                            <h4 class="mb-0">{{ earn_count }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                            <span class="fs-4">🎁</span>
+                        </div>
+                        <div>
+                            <small class="text-muted">Ads Watched</small>
+                            <h4 class="mb-0">{{ watched_count }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">🎬 Watch Ads & Earn</h4>
+        <button onclick="location.reload()" class="btn btn-sm btn-outline-primary">
+            🔄 Refresh
+        </button>
+    </div>
+
+    {% if ads|length == 0 %}
+    <div class="alert alert-info text-center">
+        <span class="fs-3">⏳</span>
+        <p class="fw-bold mb-2">All ads are on cooldown!</p>
+        <small>Wait 5 minutes or click refresh to check for available ads</small>
+        <button onclick="location.reload()" class="btn btn-primary btn-sm mt-2 w-100">
+            🔄 Check Now
+        </button>
+    </div>
+    {% else %}
+    {% for ad in ads %}
+        <div class="card mb-3 shadow-sm">
+            <div class="row g-0">
+                <div class="col-4">
+                    <img src="{{ ad.image_url }}" class="img-fluid h-100 object-fit-cover" alt="{{ ad.title }}" style="border-radius: 15px 0 0 15px;">
+                </div>
+                <div class="col-8">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="card-title mb-0">{{ ad.title }}</h5>
+                                <small class="text-muted">{{ ad.advertiser }}</small>
+                            </div>
+                            <span class="badge bg-success">+{{ ad.reward }} MIGP</span>
+                        </div>
+                        <p class="card-text small">{{ ad.description }}</p>
+                        <a href="{{ url_for('main.watch_ad', ad_id=ad.id) }}" class="btn btn-gradient btn-sm w-100">
+                            ▶ Watch ({{ ad.duration }}s)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="alert alert-light border mt-3">
+        <small class="text-muted">
+            💡 <strong>Tip:</strong> You can watch each ad multiple times! After watching, wait 5 minutes before watching the same ad again.
+        </small>
+    </div>
+
+    <h4 class="mb-3 mt-4">📊 Recent Activity</h4>
+    {% if transactions|length == 0 %}
+    <p class="text-center text-muted py-4">No transactions yet. Start watching ads!</p>
+    {% else %}
+    {% for tx in transactions %}
+    <div class="card mb-2">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">{{ tx.description }}</div>
+                    <small class="text-muted">{{ tx.timestamp }}</small>
+                </div>
+                <span class="fw-bold {% if tx.type == 'spend' %}text-danger{% else %}text-success{% endif %}">
+                    {% if tx.type == 'spend' %}-{% else %}+{% endif %}{{ tx.amount }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<nav class="navbar fixed-bottom bg-white border-top">
+    <div class="container-fluid justify-content-around">
+        <a href="{{ url_for('main.dashboard') }}" class="nav-link text-primary text-center">
+            <div>🏠</div>
+            <small>Home</small>
+        </a>
+        <a href="{{ url_for('wallet.index') }}" class="nav-link text-secondary text-center">
+            <div>💰</div>
+            <small>Wallet</small>
+        </a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin.dashboard') }}" class="nav-link text-secondary text-center">
+            <div>📊</div>
+            <small>Admin</small>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger text-center">
+            <div>🚪</div>
+            <small>Logout</small>
+        </a>
+    </div>
+</nav>
+{% endblock %}
