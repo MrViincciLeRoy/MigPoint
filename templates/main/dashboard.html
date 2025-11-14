@@ -25,12 +25,70 @@
     </div>
 </nav>
 
+<style>
+    .ad-card-cooldown {
+        opacity: 0.5;
+        position: relative;
+        pointer-events: none;
+    }
+    
+    .ad-card-cooldown::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            45deg,
+            rgba(0,0,0,0.05),
+            rgba(0,0,0,0.05) 10px,
+            transparent 10px,
+            transparent 20px
+        );
+        border-radius: 15px;
+        pointer-events: none;
+    }
+    
+    .cooldown-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        font-weight: bold;
+        z-index: 10;
+        text-align: center;
+    }
+    
+    .cooldown-timer {
+        font-size: 1.5rem;
+        color: #ffc107;
+    }
+    
+    @keyframes pulse-cooldown {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 0.7; }
+    }
+    
+    .ad-card-cooldown {
+        animation: pulse-cooldown 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.05); }
+    }
+</style>
+
 <script>
 function toggleMenu() {
     const menu = document.getElementById('userMenu');
     menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 }
-// Close menu when clicking outside
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('userMenu');
     const btn = document.getElementById('menuBtn');
@@ -41,6 +99,23 @@ document.addEventListener('click', function(e) {
 </script>
 
 <div class="container py-4" style="padding-bottom: 100px;">
+    <!-- FIRST AD BONUS BANNER -->
+    {% if is_first_ad %}
+    <div class="alert alert-success border-0 shadow-sm mb-3" style="background: linear-gradient(135deg, #00b09b, #96c93d);">
+        <div class="d-flex align-items-center">
+            <div class="fs-1 me-3">🎁</div>
+            <div class="flex-grow-1 text-white">
+                <h5 class="mb-1 fw-bold text-white">First Ad Bonus Active!</h5>
+                <p class="mb-0 small">Watch your first ad today and earn <strong>50% EXTRA</strong> MIGP!</p>
+            </div>
+            <div class="text-end text-white">
+                <div class="fs-4 fw-bold">+50%</div>
+                <small>Bonus</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card gradient-bg text-white shadow-lg mb-4">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-start mb-3">
@@ -52,6 +127,7 @@ document.addEventListener('click', function(e) {
                 <div class="text-end">
                     <small class="opacity-75">Today</small>
                     <h3 class="mb-0">+{{ today_earnings }}</h3>
+                    <small class="opacity-75">MIGP</small>
                 </div>
             </div>
             <a href="{{ url_for('wallet.index') }}" class="btn btn-light w-100">💰 Convert to Airtime</a>
@@ -98,18 +174,33 @@ document.addEventListener('click', function(e) {
         </button>
     </div>
 
-    {% if ads|length == 0 %}
+    {% if all_ads|length == 0 %}
     <div class="alert alert-info text-center">
-        <span class="fs-3">⏳</span>
-        <p class="fw-bold mb-2">All ads are on cooldown!</p>
-        <small>Wait 5 minutes or click refresh to check for available ads</small>
-        <button onclick="location.reload()" class="btn btn-primary btn-sm mt-2 w-100">
-            🔄 Check Now
-        </button>
+        <span class="fs-3">📭</span>
+        <p class="fw-bold mb-2">No ads available yet!</p>
+        <small>Check back soon for new earning opportunities</small>
     </div>
     {% else %}
-    {% for ad in ads %}
-        <div class="card mb-3 shadow-sm">
+    {% for ad in all_ads %}
+        {% set is_on_cooldown = ad.is_on_cooldown %}
+        {% set cooldown_seconds = ad.cooldown_seconds %}
+        {% set ad_type_name = ad.type if ad.type else ad.ad_type if ad.ad_type else 'demo' %}
+        
+        <div class="card mb-3 shadow-sm position-relative {% if is_on_cooldown %}ad-card-cooldown{% endif %}" 
+             data-ad-id="{{ ad.id }}"
+             data-cooldown="{{ 'true' if is_on_cooldown else 'false' }}"
+             data-cooldown-seconds="{{ cooldown_seconds if is_on_cooldown else 0 }}">
+            
+            {% if is_on_cooldown %}
+            <div class="cooldown-overlay">
+                <div class="mb-2">⏳ On Cooldown</div>
+                <div class="cooldown-timer" data-ad-id="{{ ad.id }}">
+                    <span class="minutes">00</span>:<span class="seconds">00</span>
+                </div>
+                <small style="opacity: 0.8;">Available soon</small>
+            </div>
+            {% endif %}
+            
             <div class="row g-0">
                 <div class="col-4">
                     <img src="{{ ad.image_url }}" class="img-fluid h-100 object-fit-cover" alt="{{ ad.title }}" style="border-radius: 15px 0 0 15px;">
@@ -120,13 +211,42 @@ document.addEventListener('click', function(e) {
                             <div>
                                 <h5 class="card-title mb-0">{{ ad.title }}</h5>
                                 <small class="text-muted">{{ ad.advertiser }}</small>
+                                <!-- Provider badge -->
+                                <div class="mt-1">
+                                    <span class="badge 
+                                        {% if ad_type_name == 'premium' %}bg-danger
+                                        {% elif ad_type_name == 'high_tier' %}bg-warning
+                                        {% elif ad_type_name == 'mid_tier' %}bg-primary
+                                        {% elif ad_type_name == 'low_tier' %}bg-info
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {% if ad_type_name == 'premium' %}⭐ Premium
+                                        {% elif ad_type_name == 'high_tier' %}🔥 High Value
+                                        {% elif ad_type_name == 'mid_tier' %}✨ Popular
+                                        {% elif ad_type_name == 'low_tier' %}💡 Quick
+                                        {% else %}Demo
+                                        {% endif %}
+                                    </span>
+                                </div>
                             </div>
-                            <span class="badge bg-success">+{{ ad.reward }} MIGP</span>
+                            <div class="text-end">
+                                <span class="badge bg-success fs-6">+{{ ad.reward }} MIGP</span>
+                                {% if is_first_ad %}
+                                <div><small class="text-success">+50% bonus!</small></div>
+                                {% endif %}
+                            </div>
                         </div>
                         <p class="card-text small">{{ ad.description }}</p>
+                        
+                        {% if is_on_cooldown %}
+                        <button class="btn btn-secondary btn-sm w-100" disabled>
+                            ⏳ Cooling Down...
+                        </button>
+                        {% else %}
                         <a href="{{ url_for('main.watch_ad', ad_id=ad.id) }}" class="btn btn-gradient btn-sm w-100">
                             ▶ Watch ({{ ad.duration }}s)
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -136,7 +256,7 @@ document.addEventListener('click', function(e) {
 
     <div class="alert alert-light border mt-3">
         <small class="text-muted">
-            💡 <strong>Tip:</strong> You can watch each ad multiple times! After watching, wait 5 minutes before watching the same ad again.
+            💡 <strong>Tip:</strong> Each ad has a 5-minute cooldown. Watch other ads while waiting!
         </small>
     </div>
 
@@ -184,4 +304,131 @@ document.addEventListener('click', function(e) {
         </a>
     </div>
 </nav>
+
+<script>
+// BULLETPROOF Cooldown Timer System
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎬 Initializing cooldown system...');
+    
+    // Get all ads with cooldown
+    const allAdCards = document.querySelectorAll('[data-ad-id]');
+    const cooldownTimers = {};
+    
+    allAdCards.forEach(card => {
+        const adId = card.dataset.adId;
+        const isOnCooldown = card.dataset.cooldown === 'true';
+        const cooldownSeconds = parseInt(card.dataset.cooldownSeconds) || 0;
+        
+        console.log(`Ad ${adId}: Cooldown=${isOnCooldown}, Seconds=${cooldownSeconds}`);
+        
+        if (isOnCooldown && cooldownSeconds > 0) {
+            startCooldownTimer(card, adId, cooldownSeconds);
+        }
+    });
+    
+    function startCooldownTimer(card, adId, totalSeconds) {
+        console.log(`⏱️ Starting ${totalSeconds}s cooldown timer for ad ${adId}`);
+        
+        let remainingSeconds = totalSeconds;
+        
+        const timerElement = card.querySelector('.cooldown-timer');
+        const minutesSpan = timerElement?.querySelector('.minutes');
+        const secondsSpan = timerElement?.querySelector('.seconds');
+        
+        // Update immediately
+        updateTimerDisplay(minutesSpan, secondsSpan, remainingSeconds);
+        
+        // Update every second
+        cooldownTimers[adId] = setInterval(() => {
+            remainingSeconds--;
+            
+            updateTimerDisplay(minutesSpan, secondsSpan, remainingSeconds);
+            
+            // Add pulse effect in last minute
+            if (remainingSeconds <= 60 && remainingSeconds > 0) {
+                const overlay = card.querySelector('.cooldown-overlay');
+                if (overlay && !overlay.style.animation) {
+                    overlay.style.animation = 'pulse 1s ease-in-out infinite';
+                }
+            }
+            
+            // Timer finished - reload page
+            if (remainingSeconds <= 0) {
+                clearInterval(cooldownTimers[adId]);
+                console.log(`✅ Ad ${adId} cooldown complete - reloading`);
+                
+                // Show notification
+                showNotification(`Ad available! Refreshing page...`);
+                
+                // Reload after 1 second
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+        }, 1000);
+    }
+    
+    function updateTimerDisplay(minutesSpan, secondsSpan, totalSeconds) {
+        if (!minutesSpan || !secondsSpan) return;
+        
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        minutesSpan.textContent = String(minutes).padStart(2, '0');
+        secondsSpan.textContent = String(seconds).padStart(2, '0');
+    }
+    
+    function showNotification(message) {
+        // Simple notification
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+        notification.style.zIndex = '9999';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    // EXTRA PROTECTION: Intercept watch button clicks
+    document.querySelectorAll('a[href*="/watch_ad/"]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const card = this.closest('[data-ad-id]');
+            const isOnCooldown = card?.dataset.cooldown === 'true';
+            
+            if (isOnCooldown) {
+                e.preventDefault();
+                alert('⏳ This ad is still on cooldown! Please wait.');
+                console.log('🚫 Blocked attempt to watch ad on cooldown');
+                return false;
+            }
+        });
+    });
+    
+    console.log('✅ Cooldown system initialized');
+});
+
+// Store watched ads in localStorage to persist across page loads
+function recordWatchedAd(adId) {
+    const watchedAds = JSON.parse(localStorage.getItem('watchedAds') || '{}');
+    watchedAds[adId] = Date.now();
+    localStorage.setItem('watchedAds', JSON.stringify(watchedAds));
+    console.log(`📝 Recorded watch for ad ${adId} in localStorage`);
+}
+
+// Clean up old entries (older than 6 minutes)
+function cleanupWatchedAds() {
+    const watchedAds = JSON.parse(localStorage.getItem('watchedAds') || '{}');
+    const sixMinutesAgo = Date.now() - (6 * 60 * 1000);
+    
+    for (const [adId, timestamp] of Object.entries(watchedAds)) {
+        if (timestamp < sixMinutesAgo) {
+            delete watchedAds[adId];
+        }
+    }
+    
+    localStorage.setItem('watchedAds', JSON.stringify(watchedAds));
+}
+
+cleanupWatchedAds();
+</script>
 {% endblock %}

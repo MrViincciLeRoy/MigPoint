@@ -4,6 +4,24 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
+                <!-- Provider Badge -->
+                <div class="text-center mb-3">
+                    <span class="badge 
+                        {% if ad.ad_type == 'premium' %}bg-danger
+                        {% elif ad.ad_type == 'high_tier' %}bg-warning text-dark
+                        {% elif ad.ad_type == 'mid_tier' %}bg-primary
+                        {% elif ad.ad_type == 'low_tier' %}bg-info text-dark
+                        {% else %}bg-secondary
+                        {% endif %} fs-6 px-4 py-2">
+                        {% if ad.ad_type == 'premium' %}⭐ PREMIUM AD
+                        {% elif ad.ad_type == 'high_tier' %}🔥 HIGH VALUE
+                        {% elif ad.ad_type == 'mid_tier' %}✨ POPULAR
+                        {% elif ad.ad_type == 'low_tier' %}💡 QUICK EARN
+                        {% else %}DEMO
+                        {% endif %}
+                    </span>
+                </div>
+
                 <!-- Ad Display Card -->
                 <div class="card bg-dark border-secondary mb-3">
                     <img src="{{ ad.image_url }}" class="card-img-top" style="height: 400px; object-fit: cover;">
@@ -11,15 +29,14 @@
                         <h2>{{ ad.title }}</h2>
                         <p class="text-light mb-2">{{ ad.description }}</p>
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted">Advertiser</small>
-                                <div class="fs-4">{{ ad.advertiser }}</div>
+                            <div class="text-center flex-fill">
+                                <div class="display-4">{{ ad.advertiser }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Progress Card -->
+                <!-- Progress Card with Bonuses -->
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
@@ -32,18 +49,45 @@
                         <div class="progress mb-3" style="height: 25px;">
                             <div id="progressBar" class="progress-bar bg-gradient" style="width: 0%"></div>
                         </div>
+                        
+                        <!-- Earnings Breakdown -->
                         <div class="text-center">
                             <p class="text-muted mb-2">You're Earning</p>
-                            <h2 class="text-success mb-0">+{{ ad.reward }} MIGP</h2>
+                            <h2 class="text-success mb-0">
+                                +{{ reward_info.total }} MIGP
+                                <small class="text-muted">(R{{ "%.2f"|format(reward_info.total * 0.1) }})</small>
+                            </h2>
+                            
+                            {% if reward_info.bonus > 0 %}
+                            <div class="mt-3 p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Base reward:</span>
+                                    <strong>{{ reward_info.base }} MIGP</strong>
+                                </div>
+                                {% for bonus_detail in reward_info.bonus_details %}
+                                <div class="d-flex justify-content-between mb-1 text-success">
+                                    <span>{{ bonus_detail.split(':')[0] }}:</span>
+                                    <strong>{{ bonus_detail.split(':')[1] }}</strong>
+                                </div>
+                                {% endfor %}
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>Total:</strong>
+                                    <strong class="text-success">{{ reward_info.total }} MIGP</strong>
+                                </div>
+                            </div>
+                            {% else %}
+                            <small class="text-muted d-block mt-2">from {{ ad.provider }}</small>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <!-- Skip button (can enable after 5 seconds) -->
+                <!-- Info about cooldown -->
                 <div class="text-center mt-3">
-                    <button id="skipBtn" class="btn btn-outline-light" disabled>
-                        Skip in <span id="skipCountdown">5</span>s
-                    </button>
+                    <small class="text-light opacity-75">
+                        ⏱️ You can watch this ad again in 5 minutes
+                    </small>
                 </div>
             </div>
         </div>
@@ -72,15 +116,6 @@ const timer = setInterval(() => {
     document.getElementById('progress').textContent = Math.floor(progress);
     document.getElementById('progressBar').style.width = progress + '%';
     document.getElementById('timeLeft').textContent = duration - timeElapsed;
-    
-    // Enable skip button after 5 seconds
-    const skipBtn = document.getElementById('skipBtn');
-    if (timeElapsed >= 5) {
-        skipBtn.disabled = false;
-        skipBtn.innerHTML = 'Skip Ad';
-    } else {
-        document.getElementById('skipCountdown').textContent = 5 - timeElapsed;
-    }
 }, 1000);
 
 function completeAd() {
@@ -89,15 +124,14 @@ function completeAd() {
     container.innerHTML = `
         <div class="card">
             <div class="card-body text-center py-5">
-                <div class="spinner-border text-primary mb-3" role="status">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <h4 class="text-muted">Processing...</h4>
+                <h4 class="text-muted">Processing your reward...</h4>
             </div>
         </div>
     `;
     
-    // Use the correct URL with ad_id parameter
     fetch('{{ url_for("main.complete_ad", ad_id=ad.id) }}', {
         method: 'POST',
         headers: {
@@ -110,8 +144,38 @@ function completeAd() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Redirect immediately with success message in URL
-            window.location.href = '{{ url_for("main.dashboard") }}?earned=' + data.reward;
+            // Show success message
+            let bonusHtml = '';
+            if (data.bonus > 0 && data.bonus_message) {
+                bonusHtml = `<p class="text-success mb-3">${data.bonus_message}</p>`;
+            }
+            
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="display-1 mb-3">✅</div>
+                        <h2 class="text-success mb-3">Ad Complete!</h2>
+                        ${bonusHtml}
+                        <div class="p-4 bg-light rounded mb-4">
+                            <p class="text-muted mb-2">You Earned</p>
+                            <h1 class="text-success mb-0">+${data.reward} MIGP</h1>
+                            <p class="text-muted">(R${(data.reward * 0.1).toFixed(2)})</p>
+                            ${data.bonus > 0 ? `
+                                <hr>
+                                <small class="text-muted">Base: ${data.base} MIGP + Bonus: ${data.bonus} MIGP</small>
+                            ` : ''}
+                        </div>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-gradient btn-lg px-5">
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            // Auto-redirect after 3 seconds
+            setTimeout(() => {
+                window.location.href = '{{ url_for("main.dashboard") }}?earned=' + data.reward;
+            }, 3000);
         } else {
             alert(data.error || 'Failed to complete ad');
             window.location.href = '{{ url_for("main.dashboard") }}';
@@ -123,14 +187,6 @@ function completeAd() {
         window.location.href = '{{ url_for("main.dashboard") }}';
     });
 }
-
-// Skip button handler
-document.getElementById('skipBtn').addEventListener('click', function() {
-    if (confirm('Skip ad early? You will still earn the reward.')) {
-        clearInterval(timer);
-        completeAd();
-    }
-});
 
 // Warn before leaving page
 window.addEventListener('beforeunload', function (e) {
