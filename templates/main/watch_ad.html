@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-vh-100 bg-dark d-flex align-items-center justify-content-center p-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Ad Display Card -->
+                <div class="card bg-dark border-secondary mb-3">
+                    <img src="{{ ad.image_url }}" class="card-img-top" style="height: 400px; object-fit: cover;">
+                    <div class="card-body text-white">
+                        <h2>{{ ad.title }}</h2>
+                        <p class="text-light mb-2">{{ ad.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">Advertiser</small>
+                                <div class="fs-4">{{ ad.advertiser }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Card -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Watching...</span>
+                            <span class="fw-bold text-primary">
+                                <span id="progress">0</span>% • 
+                                <span id="timeLeft">{{ ad.duration }}</span>s left
+                            </span>
+                        </div>
+                        <div class="progress mb-3" style="height: 25px;">
+                            <div id="progressBar" class="progress-bar bg-gradient" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-muted mb-2">You're Earning</p>
+                            <h2 class="text-success mb-0">+{{ ad.reward }} MIGP</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skip button (can enable after 5 seconds) -->
+                <div class="text-center mt-3">
+                    <button id="skipBtn" class="btn btn-outline-light" disabled>
+                        Skip in <span id="skipCountdown">5</span>s
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let progress = 0;
+let timeElapsed = 0;
+const duration = {{ ad.duration }};
+const increment = 100 / duration;
+const adId = {{ ad.id }};
+
+// Update every second
+const timer = setInterval(() => {
+    progress += increment;
+    timeElapsed++;
+    
+    if (progress >= 100) {
+        progress = 100;
+        clearInterval(timer);
+        completeAd();
+    }
+    
+    // Update UI
+    document.getElementById('progress').textContent = Math.floor(progress);
+    document.getElementById('progressBar').style.width = progress + '%';
+    document.getElementById('timeLeft').textContent = duration - timeElapsed;
+    
+    // Enable skip button after 5 seconds
+    const skipBtn = document.getElementById('skipBtn');
+    if (timeElapsed >= 5) {
+        skipBtn.disabled = false;
+        skipBtn.innerHTML = 'Skip Ad';
+    } else {
+        document.getElementById('skipCountdown').textContent = 5 - timeElapsed;
+    }
+}, 1000);
+
+function completeAd() {
+    // Use the correct URL with ad_id parameter
+    fetch('{{ url_for("main.complete_ad", ad_id=ad.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            watch_time: timeElapsed
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="display-1 mb-3">✓</div>
+                        <h2 class="text-success mb-3">Ad Complete!</h2>
+                        <p class="lead mb-4">You earned <strong>${data.reward} MIGP</strong></p>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-gradient btn-lg">
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            // Auto-redirect after 3 seconds
+            setTimeout(() => {
+                window.location.href = '{{ url_for("main.dashboard") }}';
+            }, 3000);
+        } else {
+            alert(data.error || 'Failed to complete ad');
+            window.location.href = '{{ url_for("main.dashboard") }}';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to complete ad. Please try again.');
+        window.location.href = '{{ url_for("main.dashboard") }}';
+    });
+}
+
+// Skip button handler
+document.getElementById('skipBtn').addEventListener('click', function() {
+    if (confirm('Skip ad early? You will still earn the reward.')) {
+        clearInterval(timer);
+        completeAd();
+    }
+});
+
+// Warn before leaving page
+window.addEventListener('beforeunload', function (e) {
+    if (progress < 100) {
+        e.preventDefault();
+        e.returnValue = 'Ad is still playing. Leave now and you won\'t earn points!';
+        return e.returnValue;
+    }
+});
+</script>
+{% endblock %}
