@@ -3,7 +3,8 @@ from flask_login import LoginManager, login_required
 from dotenv import load_dotenv
 import os
 
-# Load environment variables FIRST (before importing models)
+# Load environment variables from .env file (only for local development)
+# Render uses environment variables directly, so this is optional there
 load_dotenv()
 
 # Now import models (which will use the loaded env vars)
@@ -50,13 +51,24 @@ def list_routes():
     return '<br>'.join(sorted(output))
 
 if __name__ == '__main__':
-    # Check if .env file exists
-    if not os.path.exists('.env'):
+    # Check if required environment variables are set
+    required_vars = ['AIVEN_HOST', 'AIVEN_DB', 'AIVEN_USER', 'AIVEN_PASSWORD']
+    missing = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing:
         print("\n" + "="*60)
-        print("⚠️  WARNING: .env file not found!")
+        print("⚠️  WARNING: Missing environment variables!")
         print("="*60)
-        print("Please create a .env file in your project root.")
-        print("Copy .env.example and fill in your Aiven credentials.")
+        print(f"Missing: {', '.join(missing)}")
+        print("\nFor local development:")
+        print("  1. Copy .env.example to .env")
+        print("  2. Fill in your Aiven credentials")
+        print("\nFor Render deployment:")
+        print("  1. Go to your Render dashboard")
+        print("  2. Navigate to Environment tab")
+        print("  3. Add these variables:")
+        for var in missing:
+            print(f"     {var}=your-value-here")
         print("="*60 + "\n")
         exit(1)
     
@@ -73,9 +85,11 @@ if __name__ == '__main__':
         print("\n" + "="*60)
         print("⚠️  DATABASE NOT INITIALIZED")
         print("="*60)
-        print("Run this first: python setup_database.py")
+        print("The database tables don't exist yet.")
+        print("\nFor first-time setup, you need to initialize the database.")
+        print("Contact your admin to run: init_db()")
         print("="*60 + "\n")
-        exit(1)
+        # Don't exit - let the app try to initialize on first request
     
     print("\n" + "="*60)
     print("🚀 MIG POINTS APP - Running on Aiven PostgreSQL")
@@ -85,8 +99,11 @@ if __name__ == '__main__':
     print("  👤 User1: 0829876543")
     print("  👤 User2: 0834567890")
     print("="*60)
-    print("\n🔗 Visit http://localhost:5000")
-    print("📋 Routes: http://localhost:5000/routes")
+    
+    # Get port from environment (Render sets this automatically)
+    port = int(os.getenv('PORT', 5000))
+    
+    print(f"\n🔗 Running on port {port}")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
