@@ -10,16 +10,49 @@
         .btn-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; }
         .btn-gradient:hover { opacity: 0.9; color: white; }
         .card { border-radius: 15px; }
+        
+        /* Loading overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        #loading-overlay.show {
+            display: flex;
+        }
+        
+        /* Fast page transitions */
+        body {
+            transition: opacity 0.2s;
+        }
+        body.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="bg-light">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+    
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
                 {% for category, message in messages %}
                 <div class="toast show" role="alert">
                     <div class="toast-header bg-{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'info' }} text-white">
-                        <strong class="me-auto">Notification</strong>
+                        <strong class="me-auto">📢</strong>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
                     </div>
                     <div class="toast-body">{{ message }}</div>
@@ -32,5 +65,35 @@
     {% block content %}{% endblock %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show loading on all navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add loading to all links
+            const links = document.querySelectorAll('a:not([target="_blank"])');
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.href && !this.href.includes('#')) {
+                        document.body.classList.add('loading');
+                    }
+                });
+            });
+            
+            // Add loading to forms
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    document.body.classList.add('loading');
+                });
+            });
+            
+            // Auto-dismiss toasts after 3 seconds
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            });
+        });
+    </script>
 </body>
 </html>

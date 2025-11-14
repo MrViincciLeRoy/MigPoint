@@ -1,23 +1,34 @@
 from flask import Flask, redirect, url_for
-from flask_login import LoginManager, login_required
+from flask_login import LoginManager
+from flask_caching import Cache
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file (only for local development)
-# Render uses environment variables directly, so this is optional there
+# Load environment variables
 load_dotenv()
 
-# Now import models (which will use the loaded env vars)
-from models import User, init_db
+# Import models AFTER loading env
+from models import User, init_db, init_pool
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret-key-in-production')
+
+# Performance optimizations
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # Cache static files for 1 year
+app.config['CACHE_TYPE'] = 'simple'
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300
+
+# Initialize caching
+cache = Cache(app)
+
+# Initialize connection pool
+init_pool()
 
 # Setup Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page'
+login_manager.login_message = 'Please log in'
 login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
@@ -106,4 +117,4 @@ if __name__ == '__main__':
     print(f"\n🔗 Running on port {port}")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)
