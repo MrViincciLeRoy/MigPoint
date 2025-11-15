@@ -121,4 +121,4 @@ if __name__ == '__main__':
     print(f"\n🔗 Running on port {port}")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)

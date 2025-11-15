@@ -277,7 +277,14 @@ class DemoAdProvider:
         if not self.enabled:
             return None
         print(f"[{self.name}] Returning demo ad")
-        return random.choice(self.demo_ads)
+        ad = random.choice(self.demo_ads)
+        # Ensure is_embed is set to False for demo ads
+        ad['is_embed'] = False
+        ad['embed_script'] = None
+        ad['embed_container'] = None
+        ad['embed_script_id'] = None
+        ad['unit_name'] = 'Demo'
+        return ad
     
     def track_impression(self, ad_id, user_id, impression_url=None):
         """Track demo ad impression"""

@@ -31,24 +31,27 @@ db_pool = None
 def init_pool():
     """Initialize connection pool with appropriate size"""
     global db_pool
-    if db_pool is None:
-        try:
-            # Increased pool size for production
-            db_pool = pool.ThreadedConnectionPool(
-                minconn=2,           # Minimum connections
-                maxconn=20,          # Maximum connections (increased from 10)
-                host=DATABASE_CONFIG['host'],
-                port=DATABASE_CONFIG['port'],
-                database=DATABASE_CONFIG['database'],
-                user=DATABASE_CONFIG['user'],
-                password=DATABASE_CONFIG['password'],
-                sslmode=DATABASE_CONFIG['sslmode'],
-                connect_timeout=10   # Connection timeout
-            )
-            print("✓ Database connection pool initialized (2-20 connections)")
-        except Exception as e:
-            print(f"❌ Failed to initialize connection pool: {e}")
-            raise
+    if db_pool is not None:
+        # Already initialized, don't create another pool
+        return
+    
+    try:
+        # Increased pool size for production
+        db_pool = pool.ThreadedConnectionPool(
+            minconn=2,           # Minimum connections
+            maxconn=20,          # Maximum connections (increased from 10)
+            host=DATABASE_CONFIG['host'],
+            port=DATABASE_CONFIG['port'],
+            database=DATABASE_CONFIG['database'],
+            user=DATABASE_CONFIG['user'],
+            password=DATABASE_CONFIG['password'],
+            sslmode=DATABASE_CONFIG['sslmode'],
+            connect_timeout=10   # Connection timeout
+        )
+        print("✓ Database connection pool initialized (2-20 connections)")
+    except Exception as e:
+        print(f"❌ Failed to initialize connection pool: {e}")
+        raise
 
 @contextmanager
 def get_db_connection():

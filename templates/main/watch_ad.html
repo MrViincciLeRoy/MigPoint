@@ -175,6 +175,8 @@ function renderAd() {
                             <p style="margin: 0; opacity: 0.9;">${unitName} Loading...</p>
                         </div>
                     </div>
+                    <!-- Native Banner container - Adsterra will target this by ID -->
+                    <div id="container-${scriptId}" style="width: 100%; height: 100%; display: none;"></div>
                 </div>
                 <div class="text-center mt-4">
                     <div class="display-6">${ad.advertiser}</div>
@@ -240,7 +242,21 @@ function renderAd() {
                 container.appendChild(script);
                 console.log('✅ Social Bar script injected');
             } else {
-                // Native Banner or default: use container ID from Adsterra
+                // Native Banner or default: 
+                // Adsterra Native Banner needs container div with specific ID before script injection
+                const nativeContainer = document.getElementById(`container-${scriptId}`);
+                if (nativeContainer) {
+                    nativeContainer.style.display = 'block';  // Show the container
+                    console.log('📦 Showing Native Banner container:', `container-${scriptId}`);
+                }
+                
+                // Hide the placeholder
+                const placeholder = document.getElementById(`ad-container-${scriptId}`);
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                // Now inject the invoke script (it will find the container by ID and inject the ad)
                 const script = document.createElement('script');
                 script.async = true;
                 script.src = `//pl28050694.effectivegatecpm.com/${scriptId}/invoke.js`;
