@@ -231,7 +231,7 @@ def watch_ad():
                 'advertiser': data.get('advertiser', ''),
                 'image_url': data.get('image_url', ''),
                 'reward': float(data.get('reward', 2.1)),
-                'duration': int(data.get('duration', 10)),  # Changed default from 30 to 10
+                'duration': 10,
                 'provider': data.get('provider', 'demo'),
                 'format': data.get('format', 'native'),
                 'click_url': data.get('click_url'),
