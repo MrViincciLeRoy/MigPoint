@@ -170,7 +170,7 @@ class AdsterraProvider:
                 'title': f'Adsterra {unit["name"]}',
                 'description': 'View premium content and earn rewards',
                 'advertiser': 'Adsterra Network',
-                'duration': 30,
+                'duration': 10,
                 'reward': reward_amount,
                 'format': unit['name'],
                 'embed_script': embed_script,
@@ -255,7 +255,7 @@ class DemoAdProvider:
                 'title': 'Shoprite Fresh Specials',
                 'description': 'Fresh produce at unbeatable prices all week!',
                 'advertiser': 'Shoprite',
-                'duration': 20,
+                'duration': 10,
                 'reward': 1.5,
                 'format': 'banner',
                 'image_url': 'https://via.placeholder.com/400x300/00AA00/FFF?text=Shoprite'
@@ -267,7 +267,7 @@ class DemoAdProvider:
                 'title': 'Vodacom LTE Upgrade',
                 'description': 'Unlimited streaming with LTE upgrade!',
                 'advertiser': 'Vodacom',
-                'duration': 25,
+                'duration': 10,
                 'reward': 2.0,
                 'format': 'native',
                 'image_url': 'https://via.placeholder.com/400x300/E60000/FFF?text=Vodacom'

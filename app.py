@@ -13,6 +13,9 @@ from models import User, init_db, init_pool
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret-key-in-production')
 
+# Static Files Mode: 'offline' or 'online' (default: offline)
+app.config['STATIC_MODE'] = os.getenv('STATIC_MODE', 'offline')
+
 # Performance optimizations
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # Cache static files for 1 year
 app.config['CACHE_TYPE'] = 'simple'
