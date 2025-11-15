@@ -87,12 +87,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             // Delay startWatching to allow ad to load
-            // Popunder/Smartlink need more time (5-7 seconds), Native Banner needs ~3 seconds
+            // Banner 728x90 needs 5-7 seconds to render ads
+            // Native Banner needs ~3 seconds
             const adType = ad.unit_name || ad.format || 'Native Banner';
             let loadDelay = 3000;  // Default 3 seconds
             
-            if (adType === 'Popunder' || adType === 'Smartlink') {
-                loadDelay = 7000;  // 7 seconds for Popunder/Smartlink (they're slower)
+            if (adType === 'Banner 728x90') {
+                loadDelay = 7000;  // 7 seconds for Banner (needs time to load ads)
             }
             
             console.log(`⏱️ Waiting ${loadDelay}ms for ${adType} to load...`);
@@ -202,21 +203,7 @@ function renderAd() {
             const adFormat = ad.format || ad.unit_name || unitName;
             console.log('Detected format:', adFormat);
             
-            if (adFormat === 'Popunder') {
-                // Popunder: inject script - it will create its own container
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = `//pl28051867.effectivegatecpm.com/${scriptId}.js`;
-                document.body.appendChild(script);
-                console.log('✅ Popunder script injected');
-            } else if (adFormat === 'Smartlink') {
-                // Smartlink: inject script in container
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = `//pl28051870.effectivegatecpm.com/${scriptId}.js`;
-                container.appendChild(script);
-                console.log('✅ Smartlink script injected');
-            } else if (adFormat === 'Banner 728x90') {
+            if (adFormat === 'Banner 728x90') {
                 // Banner: inject with atOptions
                 const script = document.createElement('script');
                 script.type = 'text/javascript';
@@ -234,13 +221,6 @@ function renderAd() {
                 invokeScript.src = `//www.highperformanceformat.com/${scriptId}/invoke.js`;
                 container.appendChild(invokeScript);
                 console.log('✅ Banner 728x90 script injected');
-            } else if (adFormat === 'Social Bar') {
-                // Social Bar uses direct invoke
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = `//pl28051870.effectivegatecpm.com/${scriptId}.js`;
-                container.appendChild(script);
-                console.log('✅ Social Bar script injected');
             } else {
                 // Native Banner or default: 
                 // Adsterra Native Banner needs container div with specific ID before script injection

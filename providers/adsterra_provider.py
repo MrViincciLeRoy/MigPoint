@@ -33,15 +33,6 @@ class AdsterraProvider:
             'frequency': 5,  # Show every 5 ads
             'embed_url': '//pl28051867.effectivegatecpm.com'
         },
-        'smartlink': {
-            'id': '27951380',
-            'script_id': '4a86ea279595978600ecb939c3f7b4b8',
-            'name': 'Smartlink',
-            'ecpm': 0.08,  # Increased from 0.05 (Popunder disabled, so this is primary high-CPM)
-            'priority': 2,  # High priority
-            'frequency': 2,  # Show every 2 ads (was 3)
-            'embed_url': '//pl28051870.effectivegatecpm.com'
-        },
         'native_banner': {
             'id': '27950195',
             'script_id': 'efeb8c7d77558041c397af667df46f35',
@@ -59,15 +50,6 @@ class AdsterraProvider:
             'priority': 0,  # Lowest priority
             'frequency': 10,  # Rarely show
             'embed_url': '//www.highperformanceformat.com'
-        },
-        'social_bar': {
-            'id': '27951371',
-            'script_id': 'not_set_yet',  # Update when you get it
-            'name': 'Social Bar',
-            'ecpm': 0.02,  # Average of $0.01-0.03
-            'priority': 1,  # Medium priority
-            'frequency': 0,  # Passive widget (always show)
-            'embed_url': '//www.effectivegatecpm.com'
         }
     }
     
@@ -75,28 +57,48 @@ class AdsterraProvider:
         self.name = 'adsterra'
         self.enabled = enabled
         self.timeout = 5
-        self._request_count = 0  # Track requests for rotation
+        import time
+        self._base_time = int(time.time() * 1000)  # milliseconds for variety
+        self._call_count = 0
         
     def _get_next_unit(self):
         """
-        Smart rotation logic - SIMPLIFIED for reliability:
-        - Every 2 ads: Smartlink (if available, higher CPM)
-        - Every ad: Native Banner (reliable fallback)
+        Select ad unit based on time + call count for guaranteed variety
         
-        Note: Popunder disabled due to browser popup blocker issues
+        Rotation strategy:
+        - Popunder (30%): unit 0
+        - Banner 728x90 (20%): unit 1
+        - Native Banner (50%): unit 2
         """
-        self._request_count += 1
+        import random
+        import time
         
-        # Every 2 ads: Try Smartlink (more reliable than Popunder)
-        if self._request_count % 2 == 0:
-            unit = self.AD_UNITS.get('smartlink')
-            if unit and unit['script_id'] != 'not_set_yet':
-                print(f"[{self.name}] Rotation: Smartlink (#{self._request_count})")
+        # Use combination of time and call count to ensure variety
+        self._call_count += 1
+        current_time_ms = int(time.time() * 1000)
+        time_variance = (current_time_ms - self._base_time) % 100
+        
+        # Create a seed that changes frequently and between calls
+        combined_seed = (time_variance + self._call_count * 17) % 100
+        
+        print(f"[{self.name}] Seed: {combined_seed} (time_var: {time_variance}, call: {self._call_count})")
+        
+        if combined_seed < 30:
+            # 30%: Popunder
+            unit = self.AD_UNITS.get('popunder')
+            if unit:
+                print(f"[{self.name}] -> Selected: Popunder")
+                return unit
+        elif combined_seed < 50:
+            # 20%: Banner 728x90
+            unit = self.AD_UNITS.get('banner_728x90')
+            if unit:
+                print(f"[{self.name}] -> Selected: Banner 728x90")
                 return unit
         
-        # Default: Native Banner (always reliable)
+        # 50%: Native Banner
         unit = self.AD_UNITS.get('native_banner')
-        print(f"[{self.name}] Rotation: Native Banner (#{self._request_count})")
+        print(f"[{self.name}] -> Selected: Native Banner")
         return unit
         
     def fetch_ad(self, ad_format='native', user_country='ZA', view_count=0):
@@ -335,7 +337,7 @@ class AdManager:
         print(f"🎬 AD MANAGER INITIALIZED - MULTI-UNIT ROTATION")
         print(f"{'='*60}")
         print(f"Enabled providers: {', '.join(enabled)}")
-        print(f"Adsterra Units: Popunder (5x), Smartlink (3x), Native Banner (1x)")
+        print(f"Adsterra Units: Native Banner (60%), Popunder (20%), Banner 728x90 (20%) - Random Rotation")
         print(f"Fallback to demo: {self.fallback_to_demo}")
         print(f"{'='*60}\n")
     

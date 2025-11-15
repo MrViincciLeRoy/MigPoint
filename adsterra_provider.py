@@ -6,21 +6,22 @@ Implements Adsterra's 5 ad formats with smart CPM optimization
 import requests
 import random
 from datetime import datetime
-from models import get_db_connection
+from models import get_db_connection, convert_query
 from config_adsterra import AdsterraConfig
 import os
 
 class AdsterraProvider:
     """
-    Adsterra Ad Provider - Multi-Unit Smart Rotation
-    
-    Supports 5 ad formats:
-    1. Popunder ($0.05-0.15) - High CPM, show every 5 ads
-    2. Smartlink ($0.02-0.08) - Medium-high CPM, show every 3 ads
-    3. Native Banner ($0.003) - Low CPM, fallback/default
-    4. Banner 728x90 ($0.002-0.005) - Low CPM, alternative
-    5. Social Bar ($0.01-0.03) - Medium CPM, passive widget
-    """
+adsterra_provider.py - Adsterra Integration with Multi-Unit Rotation
+Implements Adsterra's ad formats with smart CPM optimization
+
+✅ ACTIVE AD FORMATS (Popunder REMOVED):
+1. Native Banner - Primary format, 50% rotation (min 10 impressions)
+2. Banner 728x90 - Secondary format, 50% rotation (min 10 impressions)
+
+❌ REMOVED:
+- Popunder - Not working reliably, removed from rotation
+"""
     
     # Ad unit configurations
     AD_UNITS = {
@@ -32,15 +33,6 @@ class AdsterraProvider:
             'priority': 3,  # Highest priority
             'frequency': 5,  # Show every 5 ads
             'embed_url': '//pl28051867.effectivegatecpm.com'
-        },
-        'smartlink': {
-            'id': '27951380',
-            'script_id': '4a86ea279595978600ecb939c3f7b4b8',
-            'name': 'Smartlink',
-            'ecpm': 0.08,  # Increased from 0.05 (Popunder disabled, so this is primary high-CPM)
-            'priority': 2,  # High priority
-            'frequency': 2,  # Show every 2 ads (was 3)
-            'embed_url': '//pl28051870.effectivegatecpm.com'
         },
         'native_banner': {
             'id': '27950195',
@@ -59,15 +51,6 @@ class AdsterraProvider:
             'priority': 0,  # Lowest priority
             'frequency': 10,  # Rarely show
             'embed_url': '//www.highperformanceformat.com'
-        },
-        'social_bar': {
-            'id': '27951371',
-            'script_id': 'not_set_yet',  # Update when you get it
-            'name': 'Social Bar',
-            'ecpm': 0.02,  # Average of $0.01-0.03
-            'priority': 1,  # Medium priority
-            'frequency': 0,  # Passive widget (always show)
-            'embed_url': '//www.effectivegatecpm.com'
         }
     }
     
@@ -75,28 +58,41 @@ class AdsterraProvider:
         self.name = 'adsterra'
         self.enabled = enabled
         self.timeout = 5
-        self._request_count = 0  # Track requests for rotation
+        import time
+        self._base_time = int(time.time() * 1000)  # milliseconds for variety
+        self._call_count = 0
         
     def _get_next_unit(self):
         """
-        Smart rotation logic - SIMPLIFIED for reliability:
-        - Every 2 ads: Smartlink (if available, higher CPM)
-        - Every ad: Native Banner (reliable fallback)
+        Select ad unit based on time + call count for guaranteed variety
         
-        Note: Popunder disabled due to browser popup blocker issues
+        Rotation strategy (Popunder REMOVED - doesn't work):
+        - Native Banner (50%): unit 0 - min 10 impressions
+        - Banner 728x90 (50%): unit 1 - min 10 impressions
         """
-        self._request_count += 1
+        import random
+        import time
         
-        # Every 2 ads: Try Smartlink (more reliable than Popunder)
-        if self._request_count % 2 == 0:
-            unit = self.AD_UNITS.get('smartlink')
-            if unit and unit['script_id'] != 'not_set_yet':
-                print(f"[{self.name}] Rotation: Smartlink (#{self._request_count})")
+        # Use combination of time and call count to ensure variety
+        self._call_count += 1
+        current_time_ms = int(time.time() * 1000)
+        time_variance = (current_time_ms - self._base_time) % 100
+        
+        # Create a seed that changes frequently and between calls
+        combined_seed = (time_variance + self._call_count * 17) % 100
+        
+        print(f"[{self.name}] Seed: {combined_seed} (time_var: {time_variance}, call: {self._call_count})")
+        
+        if combined_seed < 50:
+            # 50%: Banner 728x90 (min 10 impressions)
+            unit = self.AD_UNITS.get('banner_728x90')
+            if unit:
+                print(f"[{self.name}] -> Selected: Banner 728x90 [10+ impressions]")
                 return unit
         
-        # Default: Native Banner (always reliable)
+        # 50%: Native Banner (min 10 impressions)
         unit = self.AD_UNITS.get('native_banner')
-        print(f"[{self.name}] Rotation: Native Banner (#{self._request_count})")
+        print(f"[{self.name}] -> Selected: Native Banner [10+ impressions]")
         return unit
         
     def fetch_ad(self, ad_format='native', user_country='ZA', view_count=0):
@@ -135,9 +131,11 @@ class AdsterraProvider:
                 embed_script = f'<script type="text/javascript" src="//pl28051867.effectivegatecpm.com/{unit["script_id"]}.js"></script>'
                 embed_container = ''
             elif unit['name'] == 'Smartlink':
-                # Smartlink: https://pl28051870.effectivegatecpm.com/4a/86/ea/4a86ea279595978600ecb939c3f7b4b8.js
-                embed_script = f'<script type="text/javascript" src="//pl28051870.effectivegatecpm.com/{unit["script_id"]}.js"></script>'
-                embed_container = ''
+                # Smartlink: Adsterra Smartlink is a clickable URL, not a script
+                # Format: https://www.effectivegatecpm.com/{key}
+                smartlink_url = f'https://www.effectivegatecpm.com/{unit["script_id"]}'
+                embed_script = smartlink_url  # Store URL instead of script
+                embed_container = ''  # No container needed
             elif unit['name'] == 'Banner 728x90':
                 # Banner: Uses atOptions format with highperformanceformat CDN
                 embed_script = f'''<script type="text/javascript">
@@ -175,6 +173,7 @@ class AdsterraProvider:
                 'embed_container': embed_container,
                 'is_embed': True,
                 'embed_script_id': unit['script_id'],
+                'click_url': embed_script if unit['name'] == 'Smartlink' else None,
                 'ecpm': unit['ecpm'],
                 'unit_name': unit['name']
             }
@@ -342,7 +341,11 @@ class AdManager:
         print(f"🎬 AD MANAGER INITIALIZED - MULTI-UNIT ROTATION")
         print(f"{'='*60}")
         print(f"Enabled providers: {', '.join(enabled)}")
-        print(f"Adsterra Units: Popunder (5x), Smartlink (3x), Native Banner (1x)")
+        print(f"✅ Adsterra Units (Active):")
+        print(f"   • Native Banner (50%) - Min 10 impressions")
+        print(f"   • Banner 728x90 (50%) - Min 10 impressions")
+        print(f"❌ Adsterra Units (Removed):")
+        print(f"   • Popunder - Not working reliably")
         print(f"Fallback to demo: {self.fallback_to_demo}")
         print(f"{'='*60}\n")
     

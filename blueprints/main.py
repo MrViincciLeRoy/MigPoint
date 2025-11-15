@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, jsonify, request
 from flask_login import login_required, current_user
-from models import get_db_connection
+from models import get_db_connection, convert_query, safe_row_access
 from datetime import datetime, timedelta
 from adsterra_provider import AdManager
 import os
@@ -26,14 +26,14 @@ def get_ad_cooldown_info(user_id, ad_id):
         cursor = conn.cursor()
         
         # Get the most recent watch for this user + ad combo
-        cursor.execute("""
+        cursor.execute(convert_query("""
             SELECT timestamp,
                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - timestamp)) as seconds_ago
             FROM watched_ads 
             WHERE user_id = %s AND ad_id = %s
             ORDER BY timestamp DESC
             LIMIT 1
-        """, (user_id, ad_id))
+        """), (user_id, ad_id))
         
         result = cursor.fetchone()
         
@@ -41,16 +41,16 @@ def get_ad_cooldown_info(user_id, ad_id):
             # Never watched this ad
             return False, 0, None
         
-        seconds_ago = int(result['seconds_ago'])
+        seconds_ago = int(safe_row_access(result, 'seconds_ago', 0))
         cooldown_seconds = 5 * 60  # 5 minutes
         
         if seconds_ago < cooldown_seconds:
             # Still on cooldown
             seconds_remaining = cooldown_seconds - seconds_ago
-            return True, seconds_remaining, result['timestamp']
+            return True, seconds_remaining, safe_row_access(result, 'timestamp', 1)
         else:
             # Cooldown expired
-            return False, 0, result['timestamp']
+            return False, 0, safe_row_access(result, 'timestamp', 1)
 
 
 def calculate_ad_reward(ad_data, user_id):
@@ -64,14 +64,14 @@ def calculate_ad_reward(ad_data, user_id):
         
         # Check if first ad today (50% bonus)
         today = datetime.now().strftime('%Y-%m-%d')
-        cursor.execute("""
+        cursor.execute(convert_query("""
             SELECT COUNT(*) as count FROM transactions 
             WHERE user_id = %s 
             AND type = 'earn'
             AND DATE(timestamp) = %s
-        """, (user_id, today))
+        """), (user_id, today))
         
-        is_first_ad = cursor.fetchone()['count'] == 0
+        is_first_ad = safe_row_access(cursor.fetchone(), 'count', 0) == 0
         
         if is_first_ad:
             first_ad_bonus = base_reward * 0.5
@@ -82,14 +82,14 @@ def calculate_ad_reward(ad_data, user_id):
         streak_days = 0
         for i in range(7):
             check_date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 SELECT COUNT(*) as count FROM transactions
                 WHERE user_id = %s
                 AND type = 'earn'
                 AND DATE(timestamp) = %s
-            """, (user_id, check_date))
+            """), (user_id, check_date))
             
-            if cursor.fetchone()['count'] > 0:
+            if safe_row_access(cursor.fetchone(), 'count', 0) > 0:
                 streak_days += 1
             else:
                 break
@@ -130,7 +130,7 @@ def dashboard():
         today = datetime.now().strftime('%Y-%m-%d')
         
         # Get user stats
-        cursor.execute("""
+        cursor.execute(convert_query("""
             SELECT 
                 u.*,
                 COALESCE(SUM(CASE WHEN t.type = 'earn' AND DATE(t.timestamp) = %s THEN t.amount ELSE 0 END), 0) as today_earnings,
@@ -141,13 +141,13 @@ def dashboard():
             LEFT JOIN watched_ads w ON w.user_id = u.id
             WHERE u.id = %s
             GROUP BY u.id
-        """, (today, current_user.id))
+        """), (today, current_user.id))
         
         result = cursor.fetchone()
         user = result
-        today_earnings = result['today_earnings']
-        earn_count = result['earn_count']
-        watched_count = result['watched_count']
+        today_earnings = safe_row_access(result, 'today_earnings', 6)
+        earn_count = safe_row_access(result, 'earn_count', 7)
+        watched_count = safe_row_access(result, 'watched_count', 8)
         is_first_ad = today_earnings == 0
         
         # Fetch fresh ads from Adsterra/Demo (not from database)
@@ -165,12 +165,12 @@ def dashboard():
                 ads_with_cooldown.append(ad_dict)
         
         # Get recent transactions
-        cursor.execute("""
+        cursor.execute(convert_query("""
             SELECT * FROM transactions 
             WHERE user_id = %s 
             ORDER BY timestamp DESC 
             LIMIT 10
-        """, (current_user.id,))
+        """), (current_user.id,))
         transactions = cursor.fetchall()
         
         return render_template('main/dashboard.html', 
@@ -253,12 +253,12 @@ def watch_ad():
             
             # Check if first ad today
             today = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 SELECT COUNT(*) as count FROM transactions 
                 WHERE user_id = %s AND type = 'earn' AND DATE(timestamp) = %s
-            """, (current_user.id, today))
+            """), (current_user.id, today))
             
-            is_first_ad = cursor.fetchone()['count'] == 0
+            is_first_ad = safe_row_access(cursor.fetchone(), 'count', 0) == 0
             
             if is_first_ad:
                 first_ad_bonus = base_reward * 0.5
@@ -323,14 +323,14 @@ def complete_ad():
             
             # Check if first ad today (50% bonus)
             today = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 SELECT COUNT(*) as count FROM transactions 
                 WHERE user_id = %s 
                 AND type = 'earn'
                 AND DATE(timestamp) = %s
-            """, (current_user.id, today))
+            """), (current_user.id, today))
             
-            is_first_ad = cursor.fetchone()['count'] == 0
+            is_first_ad = safe_row_access(cursor.fetchone(), 'count', 0) == 0
             
             if is_first_ad:
                 first_ad_bonus = base_reward * 0.5
@@ -356,28 +356,29 @@ def complete_ad():
             cursor = conn.cursor()
             
             # Record the watch (using ad_id as string since Adsterra ads have string IDs)
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 INSERT INTO watched_ads (user_id, ad_id, timestamp) 
                 VALUES (%s, %s, CURRENT_TIMESTAMP)
                 RETURNING id, timestamp
-            """, (current_user.id, str(ad_id)))
+            """), (current_user.id, str(ad_id)))
             
             watch_record = cursor.fetchone()
             
             # Insert transaction
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 INSERT INTO transactions (user_id, type, amount, description) 
                 VALUES (%s, 'earn', %s, %s)
-            """, (current_user.id, total_reward, description))
+            """), (current_user.id, total_reward, description))
             
             # Update balance
-            cursor.execute("""
+            cursor.execute(convert_query("""
                 UPDATE users SET balance = balance + %s WHERE id = %s
-            """, (total_reward, current_user.id))
+            """), (total_reward, current_user.id))
             
             conn.commit()
         
-        print(f"✅ COMPLETED: User {current_user.id} watched {provider} ad '{ad_title}' at {watch_record['timestamp']}")
+        timestamp = safe_row_access(watch_record, 'timestamp', 1)
+        print(f"✅ COMPLETED: User {current_user.id} watched {provider} ad '{ad_title}' at {timestamp}")
         print(f"   Reward: {total_reward} MIGP (Base: {base_reward}, Bonus: {bonus_amount})")
         
         response = {
