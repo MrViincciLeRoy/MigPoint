@@ -50,7 +50,7 @@ class AdsterraConfig:
     ADSTERRA_ECPM_ZA = 1.65  # USD per 1000 impressions (average from your research)
     
     @classmethod
-    def get_reward_from_ecpm(cls, ecpm_usd=1.65, user_share=0.7, min_reward=0.05):
+    def get_reward_from_ecpm(cls, ecpm_usd=0.002, user_share=0.7, min_reward=0.05):
         """
         Calculate MIGP reward based on eCPM
         
