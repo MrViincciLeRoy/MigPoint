@@ -26,7 +26,7 @@
                             <span class="text-white" id="loadingStatus">Loading ad...</span>
                             <span class="fw-bold text-white">
                                 <span id="progress">0</span>% • 
-                                <span id="timeLeft">30</span>s left
+                                <span id="timeLeft">10</span>s left
                             </span>
                         </div>
                         <div class="progress mb-3" style="height: 25px;">
@@ -47,7 +47,7 @@
                 <!-- Info about cooldown -->
                 <div class="text-center mt-3">
                     <small class="text-light opacity-75">
-                        ⏱️ You can watch this ad again in 5 minutes
+                        ⏱️ You can watch this ad again in 1 minute
                     </small>
                 </div>
             </div>
@@ -332,7 +332,7 @@ function renderAd() {
 function startWatching() {
     let progress = 0;
     let timeElapsed = 0;
-    const duration = ad.duration || 30;
+    const duration = ad.duration || 10;
     const increment = 100 / duration;
     
     console.log(`⏱️ Starting ${duration}s ad timer`);
@@ -428,7 +428,7 @@ function completeAd(watchTime) {
             
             // Auto-redirect after 10 seconds
             setTimeout(() => {
-                window.location.href = '{{ url_for("main.dashboard") }}?earned=' + data.reward;
+                window.location.href = '{{ url_for("main.dashboard") }}';
             }, 10000);
         } else {
             alert(data.error || 'Failed to complete ad');

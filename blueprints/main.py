@@ -42,7 +42,7 @@ def get_ad_cooldown_info(user_id, ad_id):
             return False, 0, None
         
         seconds_ago = int(safe_row_access(result, 'seconds_ago', 0))
-        cooldown_seconds = 5 * 60  # 5 minutes
+        cooldown_seconds = 1 * 60  # 1 minute
         
         if seconds_ago < cooldown_seconds:
             # Still on cooldown
@@ -120,9 +120,8 @@ def calculate_ad_reward(ad_data, user_id):
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    earned = request.args.get('earned')
-    if earned:
-        flash(f'🎉 +{earned} MIGP earned!', 'success')
+    # Don't process any earned parameters from URL - this prevents tampering
+    # Rewards are only recorded via the /complete_ad route in the database
     
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -232,7 +231,7 @@ def watch_ad():
                 'advertiser': data.get('advertiser', ''),
                 'image_url': data.get('image_url', ''),
                 'reward': float(data.get('reward', 2.1)),
-                'duration': int(data.get('duration', 30)),
+                'duration': int(data.get('duration', 10)),  # Changed default from 30 to 10
                 'provider': data.get('provider', 'demo'),
                 'format': data.get('format', 'native'),
                 'click_url': data.get('click_url'),
@@ -392,7 +391,7 @@ def complete_ad():
             'base': round(base_reward, 1),
             'bonus': round(bonus_amount, 1),
             'provider': provider,
-            'cooldown_until': (datetime.now() + timedelta(minutes=5)).isoformat()
+            'cooldown_until': (datetime.now() + timedelta(minutes=1)).isoformat()
         }
         
         if bonus_details:
