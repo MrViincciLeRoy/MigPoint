@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from models import User, get_db_connection
+from models import User, get_db_connection, convert_query, safe_row_access
 from forms import LoginForm, RegisterForm
 from datetime import datetime, date
 
@@ -15,7 +15,7 @@ def check_daily_login_bonus(user_id, conn):
     cursor = conn.cursor()
     
     # Get user's last login bonus
-    cursor.execute("""
+    cursor.execute(convert_query("""
         SELECT DATE(timestamp) as bonus_date
         FROM transactions
         WHERE user_id = %s 
@@ -23,7 +23,7 @@ def check_daily_login_bonus(user_id, conn):
         AND description LIKE 'Daily login bonus%%'
         ORDER BY timestamp DESC
         LIMIT 1
-    """, (user_id,))
+    """), (user_id,))
     
     last_bonus = cursor.fetchone()
     cursor.close()
@@ -55,7 +55,7 @@ def login():
     # Get demo users for display
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users')
+        cursor.execute(convert_query('SELECT * FROM users'))
         demo_users = cursor.fetchall()
         cursor.close()
     
@@ -70,11 +70,11 @@ def login():
                 
                 if should_award:
                     cursor = conn.cursor()
-                    cursor.execute(
-                        'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+                    cursor.execute(convert_query(
+                        'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)'),
                         (user.id, 'bonus', bonus_amount, 'Daily login bonus')
                     )
-                    cursor.execute('UPDATE users SET balance = balance + %s WHERE id = %s', (bonus_amount, user.id))
+                    cursor.execute(convert_query('UPDATE users SET balance = balance + %s WHERE id = %s'), (bonus_amount, user.id))
                     conn.commit()
                     cursor.close()
                     flash(f'Welcome back! +{bonus_amount} MIGP daily bonus', 'success')
@@ -91,13 +91,18 @@ def login():
 def quick_login(phone):
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE phone = %s', (phone,))
+        cursor.execute(convert_query('SELECT * FROM users WHERE phone = %s'), (phone,))
         user_data = cursor.fetchone()
         cursor.close()
         
         if user_data:
-            user = User(user_data['id'], user_data['phone'], user_data['name'], 
-                       user_data['is_admin'], user_data['balance'])
+            user = User(
+                safe_row_access(user_data, 'id', 0),
+                safe_row_access(user_data, 'phone', 1),
+                safe_row_access(user_data, 'name', 3),
+                safe_row_access(user_data, 'is_admin', 4),
+                safe_row_access(user_data, 'balance', 5)
+            )
             login_user(user)
             
             # Check if user should get daily login bonus
@@ -105,11 +110,11 @@ def quick_login(phone):
             
             if should_award:
                 cursor = conn.cursor()
-                cursor.execute(
-                    'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+                cursor.execute(convert_query(
+                    'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)'),
                     (user.id, 'bonus', bonus_amount, 'Daily login bonus')
                 )
-                cursor.execute('UPDATE users SET balance = balance + %s WHERE id = %s', (bonus_amount, user.id))
+                cursor.execute(convert_query('UPDATE users SET balance = balance + %s WHERE id = %s'), (bonus_amount, user.id))
                 conn.commit()
                 cursor.close()
                 flash(f'Welcome back! +{bonus_amount} MIGP daily bonus', 'success')
@@ -136,11 +141,11 @@ def register():
             # Give welcome bonus (bigger than daily login)
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)',
+                cursor.execute(convert_query(
+                    'INSERT INTO transactions (user_id, type, amount, description) VALUES (%s, %s, %s, %s)'),
                     (user.id, 'bonus', 50, 'Welcome bonus')
                 )
-                cursor.execute('UPDATE users SET balance = balance + 50 WHERE id = %s', (user.id,))
+                cursor.execute(convert_query('UPDATE users SET balance = balance + %s WHERE id = %s'), (50, user.id))
                 conn.commit()
                 cursor.close()
             
