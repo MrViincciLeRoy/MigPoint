@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
-from models import get_db, return_db
+from models import get_db_connection
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -21,8 +21,7 @@ def admin_required(f):
 @login_required
 @admin_required
 def dashboard():
-    conn = get_db()
-    try:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         
         # Get total users
@@ -57,8 +56,6 @@ def dashboard():
         cursor.execute('SELECT * FROM ads')
         ads = cursor.fetchall()
         
-        cursor.close()
-        
         return render_template('admin/dashboard.html', 
                              total_users=total_users, 
                              total_ad_views=total_ad_views,
@@ -66,5 +63,3 @@ def dashboard():
                              total_spent=total_spent, 
                              users=users, 
                              ads=ads)
-    finally:
-        return_db(conn)

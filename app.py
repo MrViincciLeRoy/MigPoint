@@ -40,6 +40,7 @@ from blueprints.auth import auth_bp
 from blueprints.main import main_bp
 from blueprints.wallet import wallet_bp
 from blueprints.admin import admin_bp
+from ad_providers_config import AdProvidersConfig
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
@@ -110,6 +111,9 @@ if __name__ == '__main__':
     print("  👤 User1: 0829876543")
     print("  👤 User2: 0834567890")
     print("="*60)
+    
+    # Print ad providers status
+    AdProvidersConfig.print_status()
     
     # Get port from environment (Render sets this automatically)
     port = int(os.getenv('PORT', 5000))

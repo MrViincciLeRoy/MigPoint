@@ -197,7 +197,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS watched_ads (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id),
-                    ad_id INTEGER NOT NULL REFERENCES ads(id),
+                    ad_id TEXT NOT NULL,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 

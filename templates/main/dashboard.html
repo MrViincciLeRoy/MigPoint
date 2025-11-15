@@ -186,6 +186,21 @@ document.addEventListener('click', function(e) {
         {% set cooldown_seconds = ad.cooldown_seconds %}
         {% set ad_type_name = ad.type if ad.type else ad.ad_type if ad.ad_type else 'demo' %}
         
+        <!-- Determine badge based on provider -->
+        {% if ad.provider == 'adsterra' or ad.is_embed %}
+            {% set badge_type = 'real' %}
+        {% elif ad_type_name == 'premium' %}
+            {% set badge_type = 'premium' %}
+        {% elif ad_type_name == 'high_tier' %}
+            {% set badge_type = 'high_tier' %}
+        {% elif ad_type_name == 'mid_tier' %}
+            {% set badge_type = 'mid_tier' %}
+        {% elif ad_type_name == 'low_tier' %}
+            {% set badge_type = 'low_tier' %}
+        {% else %}
+            {% set badge_type = 'demo' %}
+        {% endif %}
+        
         <div class="card mb-3 shadow-sm position-relative {% if is_on_cooldown %}ad-card-cooldown{% endif %}" 
              data-ad-id="{{ ad.id }}"
              data-cooldown="{{ 'true' if is_on_cooldown else 'false' }}"
@@ -214,16 +229,18 @@ document.addEventListener('click', function(e) {
                                 <!-- Provider badge -->
                                 <div class="mt-1">
                                     <span class="badge 
-                                        {% if ad_type_name == 'premium' %}bg-danger
-                                        {% elif ad_type_name == 'high_tier' %}bg-warning
-                                        {% elif ad_type_name == 'mid_tier' %}bg-primary
-                                        {% elif ad_type_name == 'low_tier' %}bg-info
+                                        {% if badge_type == 'premium' %}bg-danger
+                                        {% elif badge_type == 'high_tier' %}bg-warning
+                                        {% elif badge_type == 'mid_tier' %}bg-primary
+                                        {% elif badge_type == 'low_tier' %}bg-info
+                                        {% elif badge_type == 'real' %}bg-success
                                         {% else %}bg-secondary
                                         {% endif %}">
-                                        {% if ad_type_name == 'premium' %}⭐ Premium
-                                        {% elif ad_type_name == 'high_tier' %}🔥 High Value
-                                        {% elif ad_type_name == 'mid_tier' %}✨ Popular
-                                        {% elif ad_type_name == 'low_tier' %}💡 Quick
+                                        {% if badge_type == 'premium' %}⭐ Premium
+                                        {% elif badge_type == 'high_tier' %}🔥 High Value
+                                        {% elif badge_type == 'mid_tier' %}✨ Popular
+                                        {% elif badge_type == 'low_tier' %}💡 Quick
+                                        {% elif badge_type == 'real' %}🎬 Real Ad
                                         {% else %}Demo
                                         {% endif %}
                                     </span>
@@ -243,9 +260,11 @@ document.addEventListener('click', function(e) {
                             ⏳ Cooling Down...
                         </button>
                         {% else %}
-                        <a href="{{ url_for('main.watch_ad', ad_id=ad.id) }}" class="btn btn-gradient btn-sm w-100">
+                        <button class="btn btn-gradient btn-sm w-100" 
+                                onclick="watchAd(this)" 
+                                data-ad='{{ ad|tojson|safe }}'>
                             ▶ Watch ({{ ad.duration }}s)
-                        </a>
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -427,6 +446,54 @@ function cleanupWatchedAds() {
     }
     
     localStorage.setItem('watchedAds', JSON.stringify(watchedAds));
+}
+
+// Watch ad function - sends ad data to backend
+function watchAd(button) {
+    try {
+        // Get ad data from button's data attribute
+        const adJsonString = button.getAttribute('data-ad');
+        if (!adJsonString) {
+            alert('Error: Ad data not found');
+            return;
+        }
+        
+        const ad = JSON.parse(adJsonString);
+        console.log('👁️ Attempting to watch ad:', ad.title);
+        console.log('Ad provider:', ad.provider);
+        console.log('Ad is_embed:', ad.is_embed);
+        
+        // Send to backend to start watching
+        fetch('{{ url_for("main.watch_ad") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ad)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('✅ Ad ready to watch:', data.reward_info);
+                
+                // Store ad data in session storage for watch page
+                sessionStorage.setItem('currentAd', JSON.stringify(data.ad));
+                sessionStorage.setItem('rewardInfo', JSON.stringify(data.reward_info));
+                
+                // Open watch page in modal or new view
+                window.location.href = '{{ url_for("main.watch_ad_page") }}';
+            } else {
+                alert('Error preparing ad: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            alert('Failed to prepare ad');
+        });
+    } catch (e) {
+        console.error('Parse error:', e);
+        alert('Error processing ad data');
+    }
 }
 
 cleanupWatchedAds();

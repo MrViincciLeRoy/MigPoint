@@ -5,34 +5,17 @@
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <!-- Provider Badge -->
-                <div class="text-center mb-3">
-                    <span class="badge 
-                        {% if ad.ad_type == 'premium' %}bg-danger
-                        {% elif ad.ad_type == 'high_tier' %}bg-warning text-dark
-                        {% elif ad.ad_type == 'mid_tier' %}bg-primary
-                        {% elif ad.ad_type == 'low_tier' %}bg-info text-dark
-                        {% else %}bg-secondary
-                        {% endif %} fs-6 px-4 py-2">
-                        {% if ad.ad_type == 'premium' %}⭐ PREMIUM AD
-                        {% elif ad.ad_type == 'high_tier' %}🔥 HIGH VALUE
-                        {% elif ad.ad_type == 'mid_tier' %}✨ POPULAR
-                        {% elif ad.ad_type == 'low_tier' %}💡 QUICK EARN
-                        {% else %}DEMO
-                        {% endif %}
-                    </span>
+                <div class="text-center mb-3" id="adContent">
+                    <span class="badge bg-secondary fs-6 px-4 py-2">Loading ad...</span>
                 </div>
 
                 <!-- Ad Display Card -->
-                <div class="card bg-dark border-secondary mb-3">
-                    <img src="{{ ad.image_url }}" class="card-img-top" style="height: 400px; object-fit: cover;">
-                    <div class="card-body text-white">
-                        <h2>{{ ad.title }}</h2>
-                        <p class="text-light mb-2">{{ ad.description }}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="text-center flex-fill">
-                                <div class="display-4">{{ ad.advertiser }}</div>
-                            </div>
+                <div class="card bg-dark border-secondary mb-3" id="adCard">
+                    <div class="text-center text-white p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
                         </div>
+                        <p class="mt-3">Loading ad...</p>
                     </div>
                 </div>
 
@@ -40,10 +23,10 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">Watching...</span>
+                            <span class="text-muted" id="loadingStatus">Loading ad...</span>
                             <span class="fw-bold text-primary">
                                 <span id="progress">0</span>% • 
-                                <span id="timeLeft">{{ ad.duration }}</span>s left
+                                <span id="timeLeft">30</span>s left
                             </span>
                         </div>
                         <div class="progress mb-3" style="height: 25px;">
@@ -51,34 +34,12 @@
                         </div>
                         
                         <!-- Earnings Breakdown -->
-                        <div class="text-center">
+                        <div class="text-center" id="earnings">
                             <p class="text-muted mb-2">You're Earning</p>
                             <h2 class="text-success mb-0">
-                                +{{ reward_info.total }} MIGP
-                                <small class="text-muted">(R{{ "%.2f"|format(reward_info.total * 0.1) }})</small>
+                                +<span id="totalReward">0</span> MIGP
                             </h2>
-                            
-                            {% if reward_info.bonus > 0 %}
-                            <div class="mt-3 p-3 bg-light rounded">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Base reward:</span>
-                                    <strong>{{ reward_info.base }} MIGP</strong>
-                                </div>
-                                {% for bonus_detail in reward_info.bonus_details %}
-                                <div class="d-flex justify-content-between mb-1 text-success">
-                                    <span>{{ bonus_detail.split(':')[0] }}:</span>
-                                    <strong>{{ bonus_detail.split(':')[1] }}</strong>
-                                </div>
-                                {% endfor %}
-                                <hr class="my-2">
-                                <div class="d-flex justify-content-between">
-                                    <strong>Total:</strong>
-                                    <strong class="text-success">{{ reward_info.total }} MIGP</strong>
-                                </div>
-                            </div>
-                            {% else %}
-                            <small class="text-muted d-block mt-2">from {{ ad.provider }}</small>
-                            {% endif %}
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -95,30 +56,285 @@
 </div>
 
 <script>
-let progress = 0;
-let timeElapsed = 0;
-const duration = {{ ad.duration }};
-const increment = 100 / duration;
-const adId = {{ ad.id }};
+// Load ad data from sessionStorage
+let ad, rewardInfo;
 
-// Update every second
-const timer = setInterval(() => {
-    progress += increment;
-    timeElapsed++;
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const adJson = sessionStorage.getItem('currentAd');
+        const rewardJson = sessionStorage.getItem('rewardInfo');
+        
+        if (!adJson || !rewardJson) {
+            alert('No ad data found. Redirecting...');
+            window.location.href = '{{ url_for("main.dashboard") }}';
+            return;
+        }
+        
+        ad = JSON.parse(adJson);
+        rewardInfo = JSON.parse(rewardJson);
+        
+        console.log('Ad loaded:', ad.title);
+        console.log('Reward info:', rewardInfo);
+        
+        try {
+            // Render ad card
+            renderAd();
+            console.log('✅ renderAd() completed successfully');
+        } catch (renderError) {
+            console.error('Error in renderAd():', renderError);
+            throw renderError;
+        }
+        
+        try {
+            // Delay startWatching to allow ad to load
+            // Popunder/Smartlink need more time (5-7 seconds), Native Banner needs ~3 seconds
+            const adType = ad.unit_name || ad.format || 'Native Banner';
+            let loadDelay = 3000;  // Default 3 seconds
+            
+            if (adType === 'Popunder' || adType === 'Smartlink') {
+                loadDelay = 7000;  // 7 seconds for Popunder/Smartlink (they're slower)
+            }
+            
+            console.log(`⏱️ Waiting ${loadDelay}ms for ${adType} to load...`);
+            
+            // Show loading countdown
+            const loadingStatus = document.getElementById('loadingStatus');
+            let remainingTime = Math.ceil(loadDelay / 1000);
+            loadingStatus.textContent = `Loading ${adType}... (${remainingTime}s)`;
+            
+            const countdownInterval = setInterval(() => {
+                remainingTime--;
+                if (remainingTime > 0) {
+                    loadingStatus.textContent = `Loading ${adType}... (${remainingTime}s)`;
+                } else {
+                    clearInterval(countdownInterval);
+                    loadingStatus.textContent = `Watching ${adType}...`;
+                }
+            }, 1000);
+            
+            setTimeout(() => {
+                clearInterval(countdownInterval);
+                startWatching();
+                console.log(`✅ startWatching() started for ${adType}`);
+            }, loadDelay);
+        } catch (watchError) {
+            console.error('Error in startWatching():', watchError);
+            throw watchError;
+        }
+        
+    } catch (e) {
+        console.error('Error in DOMContentLoaded:', e);
+        console.error('Stack:', e.stack);
+        alert('Error: ' + e.message);
+        window.location.href = '{{ url_for("main.dashboard") }}';
+    }
+});
+
+function renderAd() {
+    const adCard = document.getElementById('adCard');
+    const adContent = document.getElementById('adContent');
+    const earnings = document.getElementById('earnings');
     
-    if (progress >= 100) {
-        progress = 100;
-        clearInterval(timer);
-        completeAd();
+    // Debug: log ad data
+    console.log('=== AD DEBUG ===');
+    console.log('Full ad object:', ad);
+    console.log('provider:', ad.provider);
+    console.log('is_embed:', ad.is_embed);
+    console.log('type:', ad.type);
+    console.log('format:', ad.format);
+    
+    // Render ad badge
+    let badgeClass = 'bg-secondary';
+    let badgeText = 'DEMO';
+    if (ad.format === 'premium') {
+        badgeClass = 'bg-danger';
+        badgeText = '⭐ PREMIUM AD';
+    } else if (ad.provider === 'adsterra' || ad.is_embed) {
+        badgeClass = 'bg-success';
+        badgeText = '🎬 REAL AD';
     }
     
-    // Update UI
-    document.getElementById('progress').textContent = Math.floor(progress);
-    document.getElementById('progressBar').style.width = progress + '%';
-    document.getElementById('timeLeft').textContent = duration - timeElapsed;
-}, 1000);
+    console.log('Badge:', badgeText, '| Badge Class:', badgeClass);
+    adContent.innerHTML = `<span class="badge ${badgeClass} fs-6 px-4 py-2">${badgeText}</span>`;
+    
+    // Render ad card
+    let adCardContent = '';
+    
+    // Check if this is an Adsterra embed ad
+    if (ad.is_embed && ad.embed_script) {
+        const scriptId = ad.embed_script_id || 'efeb8c7d77558041c397af667df46f35';
+        const unitName = ad.unit_name || ad.format || 'Adsterra Ad';
+        
+        adCardContent = `
+            <div class="card-body text-white p-4">
+                <h3 class="text-center mb-4">${ad.title}</h3>
+                <div class="text-center" style="min-height: 300px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; position: relative;">
+                    <div id="ad-container-${scriptId}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center">
+                            <div style="font-size: 3rem; margin-bottom: 10px;">📺</div>
+                            <p style="margin: 0; opacity: 0.9;">${unitName} Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-4">
+                    <div class="display-6">${ad.advertiser}</div>
+                    <p class="text-light mt-2">${ad.description}</p>
+                </div>
+            </div>
+        `;
+        
+        // Render the card first
+        adCard.innerHTML = adCardContent;
+        
+        // Then inject the ad scripts
+        setTimeout(() => {
+            console.log('Injecting Adsterra embed for:', unitName);
+            console.log('ad.unit_name:', ad.unit_name);
+            console.log('ad.format:', ad.format);
+            console.log('scriptId:', scriptId);
+            
+            // Create wrapper div for Popunder/Smartlink if needed
+            const container = document.getElementById(`ad-container-${scriptId}`);
+            
+            // Use ad.format as primary check (from backend), unitName as fallback
+            const adFormat = ad.format || ad.unit_name || unitName;
+            console.log('Detected format:', adFormat);
+            
+            if (adFormat === 'Popunder') {
+                // Popunder: inject script - it will create its own container
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = `//pl28051867.effectivegatecpm.com/${scriptId}.js`;
+                document.body.appendChild(script);
+                console.log('✅ Popunder script injected');
+            } else if (adFormat === 'Smartlink') {
+                // Smartlink: inject script in container
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = `//pl28051870.effectivegatecpm.com/${scriptId}.js`;
+                container.appendChild(script);
+                console.log('✅ Smartlink script injected');
+            } else if (adFormat === 'Banner 728x90') {
+                // Banner: inject with atOptions
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.innerHTML = `atOptions = {
+    'key' : '${scriptId}',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+};`;
+                container.appendChild(script);
+                
+                const invokeScript = document.createElement('script');
+                invokeScript.type = 'text/javascript';
+                invokeScript.src = `//www.highperformanceformat.com/${scriptId}/invoke.js`;
+                container.appendChild(invokeScript);
+                console.log('✅ Banner 728x90 script injected');
+            } else if (adFormat === 'Social Bar') {
+                // Social Bar uses direct invoke
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = `//pl28051870.effectivegatecpm.com/${scriptId}.js`;
+                container.appendChild(script);
+                console.log('✅ Social Bar script injected');
+            } else {
+                // Native Banner or default: use container ID from Adsterra
+                const script = document.createElement('script');
+                script.async = true;
+                script.src = `//pl28050694.effectivegatecpm.com/${scriptId}/invoke.js`;
+                script.setAttribute('data-cfasync', 'false');
+                document.body.appendChild(script);
+                console.log('✅ Native Banner script injected (format:', adFormat + ')');
+            }
+        }, 100);
+    } else {
+        // For demo ads, show image
+        adCardContent = `
+            <img src="${ad.image_url}" class="card-img-top" style="height: 400px; object-fit: cover;">
+            <div class="card-body text-white">
+                <h2>${ad.title}</h2>
+                <p class="text-light mb-2">${ad.description}</p>
+                <div class="text-center">
+                    <div class="display-6">${ad.advertiser}</div>
+                </div>
+            </div>
+        `;
+        
+        adCard.innerHTML = adCardContent;
+    }
+    
+    // Render earnings - this updates the earnings div with new content
+    const bonusHtml = rewardInfo.bonus > 0 ? `
+        <div class="mt-3 p-3 bg-light rounded">
+            <div class="d-flex justify-content-between mb-1">
+                <span>Base reward:</span>
+                <strong>${rewardInfo.base} MIGP</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-1 text-success">
+                <span>Bonuses:</span>
+                <strong>+${rewardInfo.bonus} MIGP</strong>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between">
+                <strong>Total:</strong>
+                <strong class="text-success">${rewardInfo.total} MIGP</strong>
+            </div>
+        </div>
+    ` : '';
+    
+    earnings.innerHTML = `
+        <p class="text-muted mb-2">You're Earning</p>
+        <h2 class="text-success mb-0">
+            +${rewardInfo.total} MIGP
+            <small class="text-muted">(R${(rewardInfo.total * 0.1).toFixed(2)})</small>
+        </h2>
+        ${bonusHtml}
+    `;
+    
+    // Don't try to update elements that were just replaced - they're already updated in the HTML above
+}
 
-function completeAd() {
+function startWatching() {
+    let progress = 0;
+    let timeElapsed = 0;
+    const duration = ad.duration || 30;
+    const increment = 100 / duration;
+    
+    console.log(`⏱️ Starting ${duration}s ad timer`);
+    
+    // Warn before leaving page
+    window.addEventListener('beforeunload', function (e) {
+        if (progress < 100) {
+            e.preventDefault();
+            e.returnValue = 'Ad is still playing. Leave now and you won\'t earn points!';
+            return e.returnValue;
+        }
+    });
+    
+    // Update every second
+    const timer = setInterval(() => {
+        progress += increment;
+        timeElapsed++;
+        
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(timer);
+            completeAd(timeElapsed);
+            return;
+        }
+        
+        // Update UI
+        document.getElementById('progress').textContent = Math.floor(progress);
+        document.getElementById('progressBar').style.width = progress + '%';
+        document.getElementById('timeLeft').textContent = duration - timeElapsed;
+    }, 1000);
+}
+
+function completeAd(watchTime) {
+    console.log(`✅ Ad complete - sending to backend`);
+    
     // Show loading state
     const container = document.querySelector('.container');
     container.innerHTML = `
@@ -132,13 +348,18 @@ function completeAd() {
         </div>
     `;
     
-    fetch('{{ url_for("main.complete_ad", ad_id=ad.id) }}', {
+    // Send completion to backend
+    fetch('{{ url_for("main.complete_ad") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            watch_time: timeElapsed
+            ad_id: ad.ad_id || ad.id,
+            title: ad.title,
+            reward: ad.reward,
+            provider: ad.provider,
+            watch_time: watchTime
         })
     })
     .then(response => response.json())
@@ -172,10 +393,10 @@ function completeAd() {
                 </div>
             `;
             
-            // Auto-redirect after 3 seconds
+            // Auto-redirect after 10 seconds
             setTimeout(() => {
                 window.location.href = '{{ url_for("main.dashboard") }}?earned=' + data.reward;
-            }, 3000);
+            }, 10000);
         } else {
             alert(data.error || 'Failed to complete ad');
             window.location.href = '{{ url_for("main.dashboard") }}';
@@ -187,14 +408,5 @@ function completeAd() {
         window.location.href = '{{ url_for("main.dashboard") }}';
     });
 }
-
-// Warn before leaving page
-window.addEventListener('beforeunload', function (e) {
-    if (progress < 100) {
-        e.preventDefault();
-        e.returnValue = 'Ad is still playing. Leave now and you won\'t earn points!';
-        return e.returnValue;
-    }
-});
 </script>
 {% endblock %}
