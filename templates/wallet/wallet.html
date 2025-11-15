@@ -12,8 +12,17 @@
     <div class="card gradient-bg text-white shadow-lg mb-4">
         <div class="card-body p-4">
             <small class="opacity-75">Available Balance</small>
-            <h1 class="display-3 mb-0">{{ user.balance }} MIGP</h1>
-            <p class="fs-5 mb-0">≈ R{{ "%.2f"|format(user.balance * 0.1) }}</p>
+            <h1 class="display-3 mb-0">{{ "%.2f"|format(user.balance) }} <small class="fs-4">MIGP</small></h1>
+            <div class="d-flex justify-content-between align-items-center mt-3 p-3" style="background: rgba(255,255,255,0.1); border-radius: 10px;">
+                <div>
+                    <small class="opacity-75 d-block">Exact Balance</small>
+                    <strong class="fs-5">{{ user.balance }} MIGP</strong>
+                </div>
+                <div class="text-end">
+                    <small class="opacity-75 d-block">Cash Value</small>
+                    <strong class="fs-5">R{{ "%.2f"|format(user.balance * 0.1) }}</strong>
+                </div>
+            </div>
         </div>
     </div>
 <!-- DATA SECTION -->
@@ -155,7 +164,7 @@
                     </div>
                     <div class="text-end">
                         <div class="fw-bold fs-5 {% if tx.type == 'spend' %}text-danger{% else %}text-success{% endif %}">
-                            {% if tx.type == 'spend' %}-{% else %}+{% endif %}{{ tx.amount }}
+                            {% if tx.type == 'spend' %}-{% else %}+{% endif %}{{ "%.2f"|format(tx.amount) }}
                         </div>
                         <small class="text-muted">MIGP</small>
                     </div>

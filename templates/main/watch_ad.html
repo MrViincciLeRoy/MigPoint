@@ -10,7 +10,7 @@
                 </div>
 
                 <!-- Ad Display Card -->
-                <div class="card bg-dark border-secondary mb-3" id="adCard">
+                <div class="card bg-dark border-secondary mb-3" id="adCard" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;">
                     <div class="text-center text-white p-5">
                         <div class="spinner-border" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -20,23 +20,23 @@
                 </div>
 
                 <!-- Progress Card with Bonuses -->
-                <div class="card">
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted" id="loadingStatus">Loading ad...</span>
-                            <span class="fw-bold text-primary">
+                            <span class="text-white" id="loadingStatus">Loading ad...</span>
+                            <span class="fw-bold text-white">
                                 <span id="progress">0</span>% • 
                                 <span id="timeLeft">30</span>s left
                             </span>
                         </div>
                         <div class="progress mb-3" style="height: 25px;">
-                            <div id="progressBar" class="progress-bar bg-gradient" style="width: 0%"></div>
+                            <div id="progressBar" class="progress-bar bg-success" style="width: 0%"></div>
                         </div>
                         
                         <!-- Earnings Breakdown -->
                         <div class="text-center" id="earnings">
-                            <p class="text-muted mb-2">You're Earning</p>
-                            <h2 class="text-success mb-0">
+                            <p class="text-white mb-2">You're Earning</p>
+                            <h2 class="text-white mb-0">
                                 +<span id="totalReward">0</span> MIGP
                             </h2>
                         </div>
@@ -169,16 +169,31 @@ function renderAd() {
         adCardContent = `
             <div class="card-body text-white p-4">
                 <h3 class="text-center mb-4">${ad.title}</h3>
-                <div class="text-center" style="min-height: 300px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; position: relative;">
-                    <div id="ad-container-${scriptId}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                        <div class="text-center">
-                            <div style="font-size: 3rem; margin-bottom: 10px;">📺</div>
-                            <p style="margin: 0; opacity: 0.9;">${unitName} Loading...</p>
-                        </div>
+                
+                <!-- Loading placeholder - will be hidden when ad loads -->
+                <div id="loading-placeholder-${scriptId}" class="text-center" style="min-height: 300px; display: flex; align-items-center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px;">
+                    <div class="text-center">
+                        <div class="spinner-border text-light mb-3" role="status"></div>
+                        <p style="margin: 0; opacity: 0.9; font-size: 1.2rem;">${unitName} Loading...</p>
                     </div>
-                    <!-- Native Banner container - Adsterra will target this by ID -->
-                    <div id="container-${scriptId}" style="width: 100%; height: 100%; display: none;"></div>
                 </div>
+                
+                <!-- Ad containers - will show when ad loads -->
+                <div id="ad-container-${scriptId}" style="display: none;">
+                    <!-- First banner instance -->
+                    <div class="text-center mb-4 p-3" style="background: #1a1a2e; border-radius: 10px;">
+                        <div id="banner-slot-1-${scriptId}"></div>
+                    </div>
+                    
+                    <!-- Second banner instance (duplicate for more visibility) -->
+                    <div class="text-center mb-3 p-3" style="background: #1a1a2e; border-radius: 10px;">
+                        <div id="banner-slot-2-${scriptId}"></div>
+                    </div>
+                </div>
+                
+                <!-- Native Banner container (for native ads) -->
+                <div id="container-${scriptId}" style="width: 100%; min-height: 300px; display: none;"></div>
+                
                 <div class="text-center mt-4">
                     <div class="display-6">${ad.advertiser}</div>
                     <p class="text-light mt-2">${ad.description}</p>
@@ -196,47 +211,71 @@ function renderAd() {
             console.log('ad.format:', ad.format);
             console.log('scriptId:', scriptId);
             
-            // Create wrapper div for Popunder/Smartlink if needed
-            const container = document.getElementById(`ad-container-${scriptId}`);
-            
             // Use ad.format as primary check (from backend), unitName as fallback
             const adFormat = ad.format || ad.unit_name || unitName;
             console.log('Detected format:', adFormat);
             
             if (adFormat === 'Banner 728x90') {
-                // Banner: inject with atOptions
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.innerHTML = `atOptions = {
+                // Banner: inject TWO instances for better visibility
+                
+                // First banner instance
+                const slot1 = document.getElementById(`banner-slot-1-${scriptId}`);
+                const script1 = document.createElement('script');
+                script1.type = 'text/javascript';
+                script1.innerHTML = `atOptions = {
     'key' : '${scriptId}',
     'format' : 'iframe',
     'height' : 90,
     'width' : 728,
     'params' : {}
 };`;
-                container.appendChild(script);
+                slot1.appendChild(script1);
                 
-                const invokeScript = document.createElement('script');
-                invokeScript.type = 'text/javascript';
-                invokeScript.src = `//www.highperformanceformat.com/${scriptId}/invoke.js`;
-                container.appendChild(invokeScript);
-                console.log('✅ Banner 728x90 script injected');
+                const invokeScript1 = document.createElement('script');
+                invokeScript1.type = 'text/javascript';
+                invokeScript1.src = `//www.highperformanceformat.com/${scriptId}/invoke.js`;
+                slot1.appendChild(invokeScript1);
+                
+                // Second banner instance (same ad, different container)
+                const slot2 = document.getElementById(`banner-slot-2-${scriptId}`);
+                const script2 = document.createElement('script');
+                script2.type = 'text/javascript';
+                script2.innerHTML = `atOptions = {
+    'key' : '${scriptId}',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+};`;
+                slot2.appendChild(script2);
+                
+                const invokeScript2 = document.createElement('script');
+                invokeScript2.type = 'text/javascript';
+                invokeScript2.src = `//www.highperformanceformat.com/${scriptId}/invoke.js`;
+                slot2.appendChild(invokeScript2);
+                
+                // Hide loading placeholder and show banners immediately
+                const placeholder = document.getElementById(`loading-placeholder-${scriptId}`);
+                const adContainer = document.getElementById(`ad-container-${scriptId}`);
+                if (placeholder) placeholder.style.display = 'none';
+                if (adContainer) adContainer.style.display = 'block';
+                
+                console.log('✅ Banner 728x90 scripts injected (2 instances)');
             } else {
-                // Native Banner or default: 
-                // Adsterra Native Banner needs container div with specific ID before script injection
+                // Native Banner or default
                 const nativeContainer = document.getElementById(`container-${scriptId}`);
                 if (nativeContainer) {
-                    nativeContainer.style.display = 'block';  // Show the container
+                    nativeContainer.style.display = 'block';
                     console.log('📦 Showing Native Banner container:', `container-${scriptId}`);
                 }
                 
-                // Hide the placeholder
-                const placeholder = document.getElementById(`ad-container-${scriptId}`);
-                if (placeholder) {
-                    placeholder.style.display = 'none';
+                // Hide the loading placeholder immediately
+                const loadingPlaceholder = document.getElementById(`loading-placeholder-${scriptId}`);
+                if (loadingPlaceholder) {
+                    loadingPlaceholder.style.display = 'none';
                 }
                 
-                // Now inject the invoke script (it will find the container by ID and inject the ad)
+                // Inject the Native Banner script
                 const script = document.createElement('script');
                 script.async = true;
                 script.src = `//pl28050694.effectivegatecpm.com/${scriptId}/invoke.js`;
@@ -261,7 +300,7 @@ function renderAd() {
         adCard.innerHTML = adCardContent;
     }
     
-    // Render earnings - this updates the earnings div with new content
+    // Render earnings
     const bonusHtml = rewardInfo.bonus > 0 ? `
         <div class="mt-3 p-3 bg-light rounded">
             <div class="d-flex justify-content-between mb-1">
@@ -288,8 +327,6 @@ function renderAd() {
         </h2>
         ${bonusHtml}
     `;
-    
-    // Don't try to update elements that were just replaced - they're already updated in the HTML above
 }
 
 function startWatching() {

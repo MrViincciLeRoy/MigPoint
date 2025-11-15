@@ -189,11 +189,11 @@ Implements Adsterra's ad formats with smart CPM optimization
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute('''
+                cursor.execute(convert_query('''
                     INSERT INTO ad_impressions 
                     (provider, ad_id, user_id, timestamp, status) 
                     VALUES (%s, %s, %s, CURRENT_TIMESTAMP, 'shown')
-                ''', (self.name, ad_id, user_id))
+                '''), (self.name, ad_id, user_id))
                 conn.commit()
             
             # Fire impression tracking pixel if provided
@@ -211,7 +211,7 @@ Implements Adsterra's ad formats with smart CPM optimization
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute('''
+                cursor.execute(convert_query('''
                     UPDATE ad_impressions 
                     SET status = 'completed', 
                         watch_time = %s, 
@@ -220,7 +220,7 @@ Implements Adsterra's ad formats with smart CPM optimization
                     AND ad_id = %s 
                     AND user_id = %s 
                     AND status = 'shown'
-                ''', (watch_time, self.name, ad_id, user_id))
+                '''), (watch_time, self.name, ad_id, user_id))
                 conn.commit()
         except Exception as e:
             print(f"Error tracking completion: {e}")
@@ -290,11 +290,11 @@ class DemoAdProvider:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute('''
+                cursor.execute(convert_query('''
                     INSERT INTO ad_impressions 
                     (provider, ad_id, user_id, timestamp, status) 
                     VALUES (%s, %s, %s, CURRENT_TIMESTAMP, 'shown')
-                ''', (self.name, ad_id, user_id))
+                '''), (self.name, ad_id, user_id))
                 conn.commit()
         except Exception as e:
             print(f"Error tracking impression: {e}")
@@ -304,7 +304,7 @@ class DemoAdProvider:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute('''
+                cursor.execute(convert_query('''
                     UPDATE ad_impressions 
                     SET status = 'completed', 
                         watch_time = %s, 
@@ -313,7 +313,7 @@ class DemoAdProvider:
                     AND ad_id = %s 
                     AND user_id = %s 
                     AND status = 'shown'
-                ''', (watch_time, self.name, ad_id, user_id))
+                '''), (watch_time, self.name, ad_id, user_id))
                 conn.commit()
         except Exception as e:
             print(f"Error tracking completion: {e}")

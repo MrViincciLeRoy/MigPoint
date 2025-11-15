@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize Adsterra manager
+# Initialize ad managers
 ad_manager = AdManager(
     ad_unit_id=os.getenv('ADSTERRA_AD_UNIT_ID'),
     publisher_id=os.getenv('ADSTERRA_PUBLISHER_ID')
@@ -151,18 +151,24 @@ def dashboard():
         is_first_ad = today_earnings == 0
         
         # Fetch fresh ads from Adsterra/Demo (not from database)
-        # Generate 3 fresh ad options for the user
+        # Generate 4 fresh ad options for the user
         ads_with_cooldown = []
-        for i in range(3):  # Show 3 ad options
+        
+        # Add Adsterra ads (4 ads)
+        for i in range(4):
             ad = ad_manager.get_ad(ad_format='native', user_id=current_user.id, user_country='ZA')
             if ad:
                 ad_dict = dict(ad)
-                # Create a fake ad_id for cooldown checking
-                ad_dict['id'] = i + 1
+                ad_dict['id'] = f'adsterra_{i}'
                 ad_dict['is_on_cooldown'] = False
                 ad_dict['cooldown_seconds'] = 0
                 ad_dict['last_watched'] = None
                 ads_with_cooldown.append(ad_dict)
+                print(f"✅ Added Adsterra ad {i}. Total ads: {len(ads_with_cooldown)}")
+        
+        print(f"📊 Final ads list: {len(ads_with_cooldown)} ads")
+        for ad in ads_with_cooldown:
+            print(f"   - {ad.get('provider')} : {ad.get('title')}")
         
         # Get recent transactions
         cursor.execute(convert_query("""
@@ -211,37 +217,36 @@ def watch_ad():
     try:
         data = request.get_json()
         
+        provider = data.get('provider', 'demo')
+        
         # Debug: log incoming ad data
         print(f"\n📨 INCOMING AD DATA:")
-        print(f"   provider: {data.get('provider')}")
-        print(f"   is_embed: {data.get('is_embed')}")
-        print(f"   type: {data.get('type')}")
+        print(f"   provider: {provider}")
         print(f"   title: {data.get('title')}")
-        print(f"   Keys in data: {list(data.keys())}\n")
         
-        # Preserve all ad data including embed info
+        # Handle Adsterra and other ads
         ad = {
-            'id': data.get('ad_id', 'adsterra_0'),
-            'title': data.get('title', 'Ad'),
-            'description': data.get('description', ''),
-            'advertiser': data.get('advertiser', ''),
-            'image_url': data.get('image_url', ''),
-            'reward': float(data.get('reward', 2.1)),
-            'duration': int(data.get('duration', 30)),
-            'provider': data.get('provider', 'demo'),
-            'format': data.get('format', 'native'),
-            'click_url': data.get('click_url'),
-            'impression_url': data.get('impression_url'),
-            # Preserve Adsterra embed data
-            'is_embed': data.get('is_embed', False),
-            'embed_script': data.get('embed_script'),
-            'embed_container': data.get('embed_container'),
-            'embed_script_id': data.get('embed_script_id'),  # IMPORTANT: script ID for correct CDN URL
-            'ad_unit_id': data.get('ad_unit_id'),
-            'unit_name': data.get('unit_name'),  # IMPORTANT: unit type (Popunder, Smartlink, etc)
-            'ecpm': data.get('ecpm'),
-            'type': data.get('type')
-        }
+                'id': data.get('ad_id', 'adsterra_0'),
+                'title': data.get('title', 'Ad'),
+                'description': data.get('description', ''),
+                'advertiser': data.get('advertiser', ''),
+                'image_url': data.get('image_url', ''),
+                'reward': float(data.get('reward', 2.1)),
+                'duration': int(data.get('duration', 30)),
+                'provider': data.get('provider', 'demo'),
+                'format': data.get('format', 'native'),
+                'click_url': data.get('click_url'),
+                'impression_url': data.get('impression_url'),
+                # Preserve Adsterra embed data
+                'is_embed': data.get('is_embed', False),
+                'embed_script': data.get('embed_script'),
+                'embed_container': data.get('embed_container'),
+                'embed_script_id': data.get('embed_script_id'),
+                'ad_unit_id': data.get('ad_unit_id'),
+                'unit_name': data.get('unit_name'),
+                'ecpm': data.get('ecpm'),
+                'type': data.get('type')
+            }
         
         # Calculate bonuses
         base_reward = ad['reward']
